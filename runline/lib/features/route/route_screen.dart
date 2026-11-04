@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/runline_map_view.dart';
 
 class RouteScreen extends StatelessWidget {
   const RouteScreen({super.key});
@@ -20,26 +21,17 @@ class RouteScreen extends StatelessWidget {
         Text('저장한 러닝 루트와 코스를 확인하세요.', style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.lg),
         Semantics(
-          label: '테스트용 지도 영역',
+          label: '연동 검증용 카카오맵',
           child: Container(
             height: 300,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: const Color(0xFFD9DCE2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.border),
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.map_outlined, size: 40, color: AppColors.subText),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text('테스트용 지도 영역', style: textTheme.titleMedium),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text('지도 SDK 연결 전 미리보기', style: textTheme.bodySmall),
-                ],
-              ),
-            ),
+            // Temporary integration check, not the final saved-route UI.
+            child: const RunlineMapView(),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
