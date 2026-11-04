@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local build configuration containing the Kakao Native App Key.
+/config/*.local.json
+
+# Generated Kotlin compiler sessions.
+/android/.kotlin/
