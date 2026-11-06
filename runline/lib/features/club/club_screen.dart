@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
-import '../../shared/widgets/primary_action_button.dart';
+import '../../shared/widgets/icon_label_action.dart';
 
 class ClubScreen extends StatelessWidget {
   const ClubScreen({super.key});
@@ -20,6 +20,11 @@ class ClubScreen extends StatelessWidget {
             Expanded(child: Text('클럽', style: textTheme.headlineMedium)),
             IconButton(
               onPressed: () {},
+              icon: const Icon(Icons.search),
+              tooltip: '클럽 검색',
+            ),
+            IconButton(
+              onPressed: () {},
               icon: const Icon(Icons.add_circle_outline),
               tooltip: '클럽 만들기',
             ),
@@ -28,42 +33,58 @@ class ClubScreen extends StatelessWidget {
         Text('함께 달릴 러닝 크루를 찾아보세요.', style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.lg),
         AppCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
               Container(
-                height: 112,
-                decoration: const BoxDecoration(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Center(
-                  child: Icon(Icons.groups_2_outlined, color: Colors.white, size: 48),
-                ),
+                child: const Icon(Icons.groups_2_outlined, color: Colors.white, size: 38),
               ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('서울 모닝 러너스', style: textTheme.titleMedium),
                     const SizedBox(height: AppSpacing.xxs),
                     Text('멤버 248명 · 초급부터 함께 달려요', style: textTheme.bodySmall),
-                    const SizedBox(height: AppSpacing.md),
-                    PrimaryActionButton(
-                      label: '클럽 둘러보기',
-                      icon: Icons.arrow_forward,
-                      onPressed: () {},
-                    ),
                   ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.arrow_forward),
+                tooltip: '클럽 둘러보기',
+                style: IconButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.primary,
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconLabelAction(label: '클럽 루트', icon: Icons.route_outlined, onPressed: () {}),
+            IconLabelAction(label: '채팅', icon: Icons.chat_bubble_outline, onPressed: () {}),
+            IconLabelAction(label: '멤버', icon: Icons.people_outline, onPressed: () {}),
+            IconLabelAction(label: '공지', icon: Icons.campaign_outlined, onPressed: () {}),
+          ],
+        ),
         const SizedBox(height: AppSpacing.lg),
-        Text('다가오는 러닝', style: textTheme.titleMedium),
+        Row(
+          children: [
+            Text('다가오는 러닝', style: textTheme.titleMedium),
+            const Spacer(),
+            TextButton(onPressed: () {}, child: const Text('전체보기')),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
         const AppCard(
           child: Row(
@@ -85,7 +106,13 @@ class ClubScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        Text('추천 클럽', style: textTheme.titleMedium),
+        Row(
+          children: [
+            Text('추천 클럽', style: textTheme.titleMedium),
+            const Spacer(),
+            TextButton(onPressed: () {}, child: const Text('전체보기')),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
         const _ClubListItem(
           name: '퇴근 후 러닝 크루',

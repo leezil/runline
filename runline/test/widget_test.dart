@@ -15,6 +15,6 @@ void main() {
     await tester.pumpWidget(const RunlineApp());
 
     expect(find.text('좋은 아침이에요, 러너!'), findsOneWidget);
-    expect(find.text('이번 주 러닝'), findsOneWidget);
+    expect(find.text('러닝 목표'), findsOneWidget);
   });
 }

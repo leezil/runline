@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
-import '../../shared/widgets/app_chip.dart';
-import '../../shared/widgets/primary_action_button.dart';
-import '../../shared/widgets/stat_metric.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -29,8 +26,6 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text('오늘의 목표까지 한 걸음 더 달려볼까요?', style: textTheme.bodyMedium),
-        const SizedBox(height: AppSpacing.md),
-        const AppChip(label: '이번 주', icon: Icons.calendar_today_outlined, selected: true),
         const SizedBox(height: AppSpacing.lg),
         AppCard(
           child: Column(
@@ -40,7 +35,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const Icon(Icons.local_fire_department_outlined, color: Color(0xFFFF7A45)),
                   const SizedBox(width: AppSpacing.xs),
-                  Text('이번 주 러닝', style: textTheme.titleMedium),
+                  Text('러닝 목표', style: textTheme.titleMedium),
                   const Spacer(),
                   Text('목표 20 km', style: textTheme.bodySmall),
                 ],
@@ -62,54 +57,60 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              StatMetric(label: '이번 주 횟수', value: '3', unit: '회'),
-              SizedBox(height: 44, child: VerticalDivider()),
-              StatMetric(label: '평균 페이스', value: "6'12\"", unit: '/km'),
-              SizedBox(height: 44, child: VerticalDivider()),
-              StatMetric(label: '누적 시간', value: '1:17', unit: '시간'),
-            ],
-          ),
-        ),
         const SizedBox(height: AppSpacing.lg),
-        Text('오늘의 러닝', style: textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
         AppCard(
-          child: Row(
+          onTap: () {},
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 88,
+                height: 88,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE6E9FF),
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.directions_run, color: AppColors.primary),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('가볍게 3 km 달리기', style: textTheme.titleMedium),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text('예상 소요 시간 20분', style: textTheme.bodySmall),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.subText),
+              const SizedBox(height: AppSpacing.md),
+              Text('러닝 시작하기', style: textTheme.headlineMedium),
+              const SizedBox(height: AppSpacing.xxs),
+              Text('지금 바로 새로운 러닝을 시작하세요.', style: textTheme.bodySmall),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        PrimaryActionButton(
-          label: '러닝 시작하기',
-          icon: Icons.play_arrow_rounded,
-          onPressed: () {},
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.route_outlined),
+                label: const Text('루트 그리기'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.border),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.flag_outlined),
+                label: const Text('목표 설정'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.border),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

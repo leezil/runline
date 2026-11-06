@@ -14,7 +14,21 @@ class FeedScreen extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
         const SizedBox(height: AppSpacing.md),
-        Text('피드', style: textTheme.headlineMedium),
+        Row(
+          children: [
+            Expanded(child: Text('피드', style: textTheme.headlineMedium)),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.search),
+              tooltip: '게시글 검색',
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.edit_square),
+              tooltip: '게시글 작성',
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.xs),
         Text('러너들의 새로운 활동을 확인하세요.', style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.md),
