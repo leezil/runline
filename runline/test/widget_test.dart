@@ -14,7 +14,7 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const RunlineApp());
 
-    expect(find.text('오늘도 달려볼까요?'), findsOneWidget);
-    expect(find.text('START'), findsWidgets);
+    expect(find.text('좋은 아침이에요, 러너!'), findsOneWidget);
+    expect(find.text('이번 주 러닝'), findsOneWidget);
   });
 }
