@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { AuthError } from "./features/auth/errors";
 import type { WorkerBindings } from "./types";
 import v1Routes from "./routes/v1";
 
@@ -25,6 +26,10 @@ app.notFound((c) =>
 );
 
 app.onError((error, c) => {
+	if (error instanceof AuthError) {
+		return c.json({ ok: false, error: { code: error.code, message: error.message } }, error.status);
+	}
+
 	console.error(
 		"Unhandled API error",
 		error instanceof Error ? error.name : "UnknownError",

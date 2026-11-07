@@ -1,1 +1,1 @@
-export type WorkerBindings = Cloudflare.Env;
+export type WorkerBindings = Cloudflare.Env & { KAKAO_APP_ID?: string };
