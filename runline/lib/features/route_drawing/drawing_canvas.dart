@@ -21,6 +21,7 @@ class DrawingCanvas extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final viewport = constraints.biggest;
+          controller.updateViewport(viewport);
           return GestureDetector(
             key: const Key('drawing-canvas-input'),
             behavior: HitTestBehavior.opaque,
@@ -47,9 +48,12 @@ class DrawingCanvas extends StatelessWidget {
 }
 
 class _DrawingPainter extends CustomPainter {
-  _DrawingPainter(this.controller) : super(repaint: controller);
+  _DrawingPainter(this.controller)
+    : _coordinateSize = controller.canvasSize,
+      super(repaint: controller);
 
   final DrawingController controller;
+  final Size _coordinateSize;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -86,5 +90,6 @@ class _DrawingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DrawingPainter oldDelegate) =>
-      oldDelegate.controller != controller;
+      oldDelegate.controller != controller ||
+      oldDelegate._coordinateSize != _coordinateSize;
 }

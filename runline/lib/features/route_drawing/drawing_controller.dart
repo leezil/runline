@@ -3,6 +3,8 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import 'drawing_presets.dart';
+
 /// Immutable canvas coordinates for a later route-generation step. Separate
 /// strokes preserve pen lifts; points are never latitude/longitude values.
 class DrawingData {
@@ -22,11 +24,29 @@ class DrawingController extends ChangeNotifier {
   final List<List<Offset>> _strokes = [];
   Size _canvasSize = Size.zero;
   bool _drawing = false;
+  Size _viewport = Size.zero;
+  DrawingPreset? _selectedPreset;
 
-  bool get hasDrawing => _strokes.isNotEmpty;
-  Size get canvasSize => _canvasSize;
-  Iterable<List<Offset>> get strokes =>
-      _strokes.map((stroke) => UnmodifiableListView(stroke));
+  DrawingPreset? get selectedPreset => _selectedPreset;
+  bool get hasDrawing => _selectedPreset != null || _strokes.isNotEmpty;
+  Size get canvasSize => _selectedPreset != null ? _viewport : _canvasSize;
+  Iterable<List<Offset>> get strokes => _selectedPreset != null
+      ? [_selectedPreset!.pointsFor(_viewport)]
+      : _strokes.map((stroke) => UnmodifiableListView(stroke));
+
+  /// Records layout without notifying during build. Preset coordinates are
+  /// derived from this viewport; manual strokes keep their original space.
+  void updateViewport(Size viewport) {
+    if (_valid(viewport)) _viewport = viewport;
+  }
+
+  void selectPreset(DrawingPreset preset) {
+    if (!_valid(_viewport)) return;
+    _drawing = false;
+    _strokes.clear();
+    _selectedPreset = preset;
+    notifyListeners();
+  }
 
   // Keep the coordinate space of the first stroke. Resizing the browser scales
   // the drawing and maps new pointer input back into that same coordinate space.
@@ -39,6 +59,9 @@ class DrawingController extends ChangeNotifier {
 
   void beginStroke(Offset local, Size viewport) {
     if (!_valid(viewport)) return;
+    // A manual stroke replaces the preset instead of joining it to a new pen
+    // stroke, which would not fit the server's single drawing-array contract.
+    _selectedPreset = null;
     if (!hasDrawing) _canvasSize = viewport;
     _strokes.add([_point(local, viewport)]);
     _drawing = true;
@@ -58,12 +81,12 @@ class DrawingController extends ChangeNotifier {
   void clear() {
     if (!hasDrawing) return;
     _drawing = false;
+    _selectedPreset = null;
     _strokes.clear();
     _canvasSize = Size.zero;
     notifyListeners();
   }
 
-  DrawingData? snapshot() => hasDrawing
-      ? DrawingData(canvasSize: canvasSize, strokes: _strokes)
-      : null;
+  DrawingData? snapshot() =>
+      hasDrawing ? DrawingData(canvasSize: canvasSize, strokes: strokes) : null;
 }
