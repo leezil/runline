@@ -6,6 +6,7 @@ import '../../shared/widgets/app_card.dart';
 import '../route_drawing/route_drawing_screen.dart';
 import '../running/running_screen.dart';
 import '../running/running_goal.dart';
+import '../running/history/running_record_detail_screen.dart';
 import 'running_goal_dialog.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -141,6 +142,18 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text('자유 러닝', textAlign: TextAlign.center),
+              TextButton.icon(
+                key: const Key('home-running-history'),
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => const RunningHistoryListScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.history),
+                label: const Text('러닝 기록'),
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(

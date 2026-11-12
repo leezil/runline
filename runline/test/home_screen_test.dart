@@ -156,8 +156,10 @@ void main() {
         ),
       );
       expect(find.text('목표 7.50 km'), findsOneWidget);
-      expect(find.text('러닝 진행 중'), findsOneWidget);
+      expect(find.text('러닝 시작 준비'), findsOneWidget);
       await tester.tap(find.text('종료'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('확인'));
       await tester.pumpAndSettle();
       expect(find.byType(RunningGoalDialog), findsNothing);
       final homeStart = find.byKey(const Key('home-start-button'));
@@ -170,6 +172,8 @@ void main() {
       );
       expect(find.byKey(const Key('running-goal-label')), findsNothing);
       await tester.tap(find.text('종료'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('확인'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
@@ -269,6 +273,8 @@ void main() {
       expect(find.text('00:00'), findsOneWidget);
       expect(find.text("--'--\""), findsOneWidget);
       await tester.tap(find.text('종료'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('확인'));
       await tester.pumpAndSettle();
       expect(find.byType(RunningGoalDialog), findsNothing);
       expect(tester.takeException(), isNull);

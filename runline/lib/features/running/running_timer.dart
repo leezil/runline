@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-enum RunningStatus { running, paused, finished }
+enum RunningStatus { ready, running, paused, finished }
 
 /// Measures active running time. The ticker only refreshes the UI; elapsed time
 /// comes from a monotonic clock so delayed browser ticks do not lose time.
@@ -25,6 +25,31 @@ class RunningTimer extends ChangeNotifier {
   }
 
   RunningStatus get status => _status;
+
+  /// Screen sessions wait for foreground location permission before starting.
+  void prepare() {
+    _ticker?.cancel();
+    _ticker = null;
+    _accumulated = Duration.zero;
+    _lastNotifiedSecond = 0;
+    _status = RunningStatus.ready;
+  }
+
+  void start() {
+    if (_status != RunningStatus.ready) return;
+    _startedAt = _now();
+    _status = RunningStatus.running;
+    _startTicker();
+    notifyListeners();
+  }
+
+  /// Process downtime is excluded. Recovery requires an explicit resume.
+  void restorePaused(Duration activeTime) {
+    if (_status != RunningStatus.ready || activeTime < Duration.zero) return;
+    _accumulated = activeTime;
+    _status = RunningStatus.paused;
+    notifyListeners();
+  }
 
   Duration get elapsed => _status == RunningStatus.running
       ? _accumulated + (_now() - _startedAt)

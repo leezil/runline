@@ -75,8 +75,10 @@ void main() {
       await tester.tap(find.text('START'));
       await tester.pumpAndSettle();
       expect(find.byType(RunningScreen), findsOneWidget);
-      expect(find.text('러닝 진행 중'), findsOneWidget);
+      expect(find.text('러닝 시작 준비'), findsOneWidget);
       await tester.tap(find.text('종료'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('확인'));
       await tester.pumpAndSettle();
       expect(find.text('오늘은 어떤 길을 달릴까요?'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -120,12 +122,13 @@ void main() {
         tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull,
       );
-      for (final label in ['별', '하트', '달', '빈 추천 모양']) {
+      for (final label in ['별', '하트', '초승달']) {
         final button = find.byWidgetPredicate(
           (widget) => widget is IconButton && widget.tooltip == label,
         );
         expect(button, findsOneWidget);
-        expect(tester.widget<IconButton>(button).onPressed, isNull);
+        expect(tester.widget<IconButton>(button).onPressed, isNotNull);
+        expect(tester.widget<IconButton>(button).isSelected, isFalse);
       }
       expect(tester.takeException(), isNull);
     },
@@ -231,6 +234,8 @@ void main() {
         find.byType(RouteGenerationScreen),
       );
       expect(screen.drawing, same(submitted));
+      expect(screen.minDistanceKm, 5);
+      expect(screen.maxDistanceKm, 10);
       expect(screen.drawing.canvasSize, original.canvasSize);
       expect(screen.drawing.strokes, original.strokes);
       expect(screen.drawing.points, original.points);
@@ -239,7 +244,7 @@ void main() {
       expect(find.text('경로 만들기'), findsOneWidget);
       expect(find.text('그린 모양을 바탕으로 러닝 경로를 생성할 준비가 되었습니다.'), findsOneWidget);
       expect(find.text('전체 point 개수: $count개'), findsOneWidget);
-      expect(find.text('경로 생성 API 연결 후 사용할 수 있습니다.'), findsOneWidget);
+      expect(find.byKey(const Key('target-distance')), findsOneWidget);
       expect(
         tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull,

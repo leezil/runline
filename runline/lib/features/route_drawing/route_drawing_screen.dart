@@ -6,6 +6,7 @@ import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import 'drawing_canvas.dart';
 import 'drawing_controller.dart';
+import 'drawing_presets.dart';
 import 'route_generation_screen.dart';
 
 class RouteDrawingScreen extends StatefulWidget {
@@ -34,7 +35,13 @@ class _RouteDrawingScreenState extends State<RouteDrawingScreen> {
     if (data == null) return;
     widget.onDrawingReady?.call(data);
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => RouteGenerationScreen(drawing: data)),
+      MaterialPageRoute(
+        builder: (_) => RouteGenerationScreen(
+          drawing: data,
+          minDistanceKm: minDistanceKm,
+          maxDistanceKm: maxDistanceKm,
+        ),
+      ),
     );
   }
 
@@ -61,14 +68,23 @@ class _RouteDrawingScreenState extends State<RouteDrawingScreen> {
               const SizedBox(height: AppSpacing.md),
               Text('추천 모양', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: AppSpacing.xs),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _SuggestedShape(label: '별', icon: Icons.star_outline_rounded),
-                  _SuggestedShape(label: '하트', icon: Icons.favorite_border),
-                  _SuggestedShape(label: '달', icon: Icons.dark_mode_outlined),
-                  _SuggestedShape(label: '빈 추천 모양'),
-                ],
+              ListenableBuilder(
+                listenable: _drawing,
+                builder: (context, _) => Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (final preset in DrawingPreset.values)
+                      _SuggestedShape(
+                        preset: preset,
+                        selected: _drawing.selectedPreset == preset,
+                        onPressed: () => _drawing.selectPreset(preset),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              const Text(
+                '모양을 선택하거나 직접 그려보세요. 실제 도로에 따라 생성되는 경로의 모양은 달라질 수 있습니다.',
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(
@@ -130,22 +146,46 @@ class _RouteDrawingScreenState extends State<RouteDrawingScreen> {
 }
 
 class _SuggestedShape extends StatelessWidget {
-  const _SuggestedShape({required this.label, this.icon});
+  const _SuggestedShape({
+    required this.preset,
+    required this.selected,
+    required this.onPressed,
+  });
 
-  final String label;
-  final IconData? icon;
+  final DrawingPreset preset;
+  final bool selected;
+  final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => IconButton.outlined(
-    onPressed: null,
-    tooltip: label,
-    style: IconButton.styleFrom(
-      fixedSize: const Size.square(56),
-      shape: const CircleBorder(),
-      side: const BorderSide(color: AppColors.border),
-      disabledForegroundColor: AppColors.subText,
-      backgroundColor: AppColors.surface,
-    ),
-    icon: icon == null ? const SizedBox.shrink() : Icon(icon, size: 28),
+  Widget build(BuildContext context) => Column(
+    children: [
+      Semantics(
+        selected: selected,
+        child: IconButton.outlined(
+          key: ValueKey('preset-${preset.name}'),
+          onPressed: onPressed,
+          isSelected: selected,
+          tooltip: preset.label,
+          style: IconButton.styleFrom(
+            fixedSize: const Size.square(56),
+            shape: const CircleBorder(),
+            side: BorderSide(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 2 : 1,
+            ),
+            foregroundColor: selected ? AppColors.primary : AppColors.subText,
+            backgroundColor: selected
+                ? AppColors.primary.withValues(alpha: .1)
+                : AppColors.surface,
+          ),
+          icon: Icon(switch (preset) {
+            DrawingPreset.star => Icons.star_outline_rounded,
+            DrawingPreset.heart => Icons.favorite_border,
+            DrawingPreset.crescent => Icons.dark_mode_outlined,
+          }, size: 28),
+        ),
+      ),
+      Text(preset.label),
+    ],
   );
 }
