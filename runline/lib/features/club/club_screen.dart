@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
+import '../../shared/widgets/app_button.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/icon_label_action.dart';
 
@@ -71,18 +72,23 @@ class ClubScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconLabelAction(label: '클럽 루트', icon: Icons.route_outlined, onPressed: () {}),
-            IconLabelAction(label: '채팅', icon: Icons.chat_bubble_outline, onPressed: () {}),
-            IconLabelAction(label: '멤버', icon: Icons.people_outline, onPressed: () {}),
             IconLabelAction(label: '공지', icon: Icons.campaign_outlined, onPressed: () {}),
+            IconLabelAction(label: '멤버', icon: Icons.people_outline, onPressed: () {}),
+            IconLabelAction(label: '클럽 러닝', icon: Icons.run_circle_outlined, onPressed: () {}),
+            IconLabelAction(label: '채팅', icon: Icons.chat_bubble_outline, onPressed: () {}),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [
-            Text('다가오는 러닝', style: textTheme.titleMedium),
+            Text('다가오는 클럽 러닝', style: textTheme.titleMedium),
             const Spacer(),
-            TextButton(onPressed: () {}, child: const Text('전체보기')),
+            AppButton(
+              label: '전체보기',
+              onPressed: () {},
+              variant: AppButtonVariant.text,
+              expand: false,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -110,7 +116,12 @@ class ClubScreen extends StatelessWidget {
           children: [
             Text('추천 클럽', style: textTheme.titleMedium),
             const Spacer(),
-            TextButton(onPressed: () {}, child: const Text('전체보기')),
+            AppButton(
+              label: '전체보기',
+              onPressed: () {},
+              variant: AppButtonVariant.text,
+              expand: false,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),

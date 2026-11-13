@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/app_button.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -84,30 +85,20 @@ class HomeScreen extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
+              child: AppButton(
                 onPressed: () {},
-                icon: const Icon(Icons.route_outlined),
-                label: const Text('루트 그리기'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
+                icon: Icons.route_outlined,
+                label: '루트 그리기',
+                variant: AppButtonVariant.outlined,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: OutlinedButton.icon(
+              child: AppButton(
                 onPressed: () {},
-                icon: const Icon(Icons.flag_outlined),
-                label: const Text('목표 설정'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
+                icon: Icons.flag_outlined,
+                label: '목표 설정',
+                variant: AppButtonVariant.outlined,
               ),
             ),
           ],

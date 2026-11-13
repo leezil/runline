@@ -45,12 +45,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
   double get _calendarHeight {
     switch (_period) {
       case _ActivityPeriod.week:
-        return 96;
+        return 120;
       case _ActivityPeriod.month:
         final firstWeekday = DateTime(_referenceDate.year, _referenceDate.month, 1).weekday % 7;
         final lastDay = DateTime(_referenceDate.year, _referenceDate.month + 1, 0).day;
         final weekRows = (firstWeekday + lastDay + 6) ~/ 7;
-        return weekRows == 6 ? 314 : 276;
+        return weekRows == 6 ? 338 : 300;
       case _ActivityPeriod.year:
         return 464;
     }
