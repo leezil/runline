@@ -65,4 +65,16 @@ void main() {
     expect(find.text('취소'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
+
+  testWidgets('opens and closes the settings screen', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+
+    await tester.tap(find.byTooltip('설정'));
+    await tester.pumpAndSettle();
+    expect(find.text('프로필 편집'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pumpAndSettle();
+    expect(find.text('러닝 목표'), findsOneWidget);
+  });
 }

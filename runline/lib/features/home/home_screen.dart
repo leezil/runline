@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
+import '../settings/settings_screen.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_button.dart';
 
@@ -17,14 +18,25 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
-            Expanded(child: Text('좋은 아침이에요, 러너!', style: textTheme.headlineMedium)),
             const CircleAvatar(
               radius: 20,
               backgroundColor: Color(0xFFE6E9FF),
               child: Icon(Icons.person_outline, color: AppColors.primary),
             ),
+            const SizedBox(width: AppSpacing.sm),
+            Text('민지 러너', style: textTheme.titleMedium),
+            const Spacer(),
+            IconButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: '설정',
+            ),
           ],
         ),
+        const SizedBox(height: AppSpacing.lg),
+        Text('좋은 아침이에요, 러너!', style: textTheme.headlineMedium),
         const SizedBox(height: AppSpacing.xs),
         Text('오늘의 목표까지 한 걸음 더 달려볼까요?', style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.lg),
