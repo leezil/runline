@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashToken } from "../src/features/auth/tokens";
-import worker from "../src/index";
+import { app as worker } from "../src/index";
 
 const api = "https://example.com/api/v1";
 
@@ -119,10 +119,96 @@ describe("Kakao login", () => {
 
 it.each([
 	["GET", "/auth/me"],
+	["GET", "/me"],
+	["GET", "/me/posts"],
+	["GET", "/users/demo"],
+	["PUT", "/users/demo/follow"],
+	["DELETE", "/users/demo/follow"],
+	["GET", "/feed/recommended"],
+	["GET", "/feed/following"],
 	["POST", "/feed/posts"],
+	["GET", "/feed/posts/demo"],
+	["PATCH", "/feed/posts/demo"],
+	["DELETE", "/feed/posts/demo"],
+	["POST", "/feed/media"],
+	["GET", "/feed/media/demo"],
 	["POST", "/crews/demo/join"],
 ])("requires Runline authentication for %s %s", async (method, path) => {
 	const response = await worker.request(`${api}${path}`, { method }, env);
 	expect(response.status).toBe(401);
 	expect(await response.json()).toMatchObject({ ok: false, error: { code: "AUTH_REQUIRED" } });
+});
+
+describe("feed posts", () => {
+	const author = "aaaaaaaa-1111-1111-1111-111111111111";
+	const other = "bbbbbbbb-1111-1111-1111-111111111111";
+	const postId = "cccccccc-1111-1111-1111-111111111111";
+	const photoId = "dddddddd-1111-1111-1111-111111111111";
+	const post = {
+		id: postId,
+		body: "오늘의 러닝",
+		created_at: "2026-11-12T08:12:34.123456Z",
+		updated_at: "2026-11-12T08:12:34.123456Z",
+		author_id: author,
+		nickname: "러너 aaaaaaaa",
+		avatar_url: null,
+		media_ids: [],
+	};
+
+	function feedRequest(path: string, method = "GET", body?: unknown) {
+		return worker.request(`${api}${path}`, {
+			method,
+			headers: { Authorization: `Bearer rla_${"a".repeat(64)}`, "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		}, env);
+	}
+
+	it("creates posts for the authenticated author", async () => {
+		query.mockResolvedValueOnce({ rows: [{ user_id: author }] })
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [{ id: postId }] })
+			.mockResolvedValueOnce({ rows: [post] })
+			.mockResolvedValueOnce({ rows: [] });
+		const response = await feedRequest("/feed/posts", "POST", { body: " 오늘의 러닝 ", authorId: other });
+		expect(response.status).toBe(201);
+		expect(await response.json()).toMatchObject({ post: { id: postId, body: post.body, author: { id: author } } });
+		expect(query.mock.calls[2][1]).toEqual([author, post.body]);
+	});
+
+	it("rolls back a post when a photo cannot be attached", async () => {
+		query.mockResolvedValueOnce({ rows: [{ user_id: author }] })
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [{ id: postId }] })
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [] });
+		const response = await feedRequest("/feed/posts", "POST", { body: post.body, mediaIds: [photoId] });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({ error: { code: "INVALID_MEDIA" } });
+		expect(query.mock.calls[3][1]).toEqual([[photoId], author, postId]);
+		expect(query.mock.lastCall?.[0]).toBe("ROLLBACK");
+	});
+
+	it("rejects deletion by a different author", async () => {
+		query.mockResolvedValueOnce({ rows: [{ user_id: other }] })
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [{ author_id: author }] })
+			.mockResolvedValueOnce({ rows: [] });
+		const response = await feedRequest(`/feed/posts/${postId}`, "DELETE");
+		expect(response.status).toBe(403);
+		expect(query.mock.lastCall?.[0]).toBe("ROLLBACK");
+	});
+
+	it("uses both the timestamp and ID for pagination", async () => {
+		query.mockResolvedValueOnce({ rows: [{ user_id: author }] })
+			.mockResolvedValueOnce({ rows: [post, { ...post, id: photoId }] })
+			.mockResolvedValueOnce({ rows: [{ user_id: author }] })
+			.mockResolvedValueOnce({ rows: [{ ...post, id: photoId }] });
+		const first = await feedRequest("/me/posts?limit=1");
+		expect(first.status).toBe(200);
+		const { nextCursor } = await first.json<{ nextCursor: string }>();
+		const second = await feedRequest(`/me/posts?limit=1&cursor=${nextCursor}`);
+		expect(second.status).toBe(200);
+		expect(await second.json()).toMatchObject({ posts: [{ id: photoId }], nextCursor: null });
+		expect(query.mock.lastCall?.[1]).toEqual([author, post.created_at, postId, 2]);
+	});
 });

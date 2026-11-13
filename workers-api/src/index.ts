@@ -1,14 +1,16 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { AuthError } from "./features/auth/errors";
+import { cleanUpMedia } from "./features/feed/media/media-cleanup";
+import { HttpError } from "./http/http-error";
 import type { WorkerBindings } from "./types";
 import v1Routes from "./routes/v1";
 
-const app = new Hono<{ Bindings: WorkerBindings }>();
+export const app = new Hono<{ Bindings: WorkerBindings }>();
 
 app.use("/api/*", async (c, next) => {
 	const corsMiddleware = cors({
-		origin: c.env.ADMIN_WEB_ORIGIN,
+		origin: [c.env.ADMIN_WEB_ORIGIN, c.env.RUNLINE_WEB_ORIGIN].filter((origin): origin is string => !!origin),
 		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		allowHeaders: ["Content-Type", "Authorization"],
 	});
@@ -26,7 +28,7 @@ app.notFound((c) =>
 );
 
 app.onError((error, c) => {
-	if (error instanceof AuthError) {
+	if (error instanceof AuthError || error instanceof HttpError) {
 		return c.json({ ok: false, error: { code: error.code, message: error.message } }, error.status);
 	}
 
@@ -46,4 +48,9 @@ app.onError((error, c) => {
 	);
 });
 
-export default app;
+export default {
+	fetch: app.fetch,
+	async scheduled(_controller, env) {
+		await cleanUpMedia(env);
+	},
+} satisfies ExportedHandler<WorkerBindings>;

@@ -1,0 +1,8 @@
+import type { Handler } from "hono";
+import type { AuthEnv } from "../../auth/require-auth";
+import { listPosts } from "./list-posts";
+
+export const recommendedFeed: Handler<AuthEnv> = (c) => listPosts(c, `
+	p.author_id <> $1 AND NOT EXISTS (
+		SELECT 1 FROM runline_user_follows WHERE follower_id = $1 AND following_id = p.author_id
+	)`);
