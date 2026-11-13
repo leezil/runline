@@ -77,4 +77,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('러닝 목표'), findsOneWidget);
   });
+
+  testWidgets('opens the goal-setting overlay from home', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+
+    final homeScrollView = find.ancestor(
+      of: find.text('러닝 시작하기'),
+      matching: find.byType(Scrollable),
+    );
+    await tester.drag(homeScrollView, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('목표 설정'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('20 km'), findsOneWidget);
+    expect(find.text('START'), findsOneWidget);
+    expect(find.text('거리'), findsOneWidget);
+    expect(find.text('취소'), findsOneWidget);
+  });
+
+  testWidgets('opens the distance and time goal picker', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+
+    final homeScrollView = find.ancestor(
+      of: find.text('러닝 시작하기'),
+      matching: find.byType(Scrollable),
+    );
+    await tester.drag(homeScrollView, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('목표 설정'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('거리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('목표 거리'), findsWidgets);
+    expect(find.text('목표 시간'), findsWidgets);
+    expect(find.text('20 km'), findsWidgets);
+    expect(find.text('30분'), findsOneWidget);
+  });
+
+  testWidgets('opens a text field for a custom goal value', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+
+    final homeScrollView = find.ancestor(
+      of: find.text('러닝 시작하기'),
+      matching: find.byType(Scrollable),
+    );
+    await tester.drag(homeScrollView, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('목표 설정'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('거리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('직접 입력').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('목표 거리 직접 입력'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+  });
 }
