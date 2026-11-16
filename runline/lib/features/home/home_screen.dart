@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
+import '../route_draw/route_draw_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_button.dart';
@@ -139,7 +140,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Expanded(
                   child: AppButton(
-                    onPressed: () {},
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const RouteDrawScreen()),
+                    ),
                     icon: Icons.route_outlined,
                     label: '루트 그리기',
                     variant: AppButtonVariant.outlined,

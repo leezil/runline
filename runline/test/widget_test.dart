@@ -135,4 +135,19 @@ void main() {
     expect(find.text('목표 거리 직접 입력'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
   });
+
+  testWidgets('opens the route drawing flow from home', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+
+    final homeScrollView = find.ancestor(
+      of: find.text('러닝 시작하기'),
+      matching: find.byType(Scrollable),
+    );
+    await tester.drag(homeScrollView, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('루트 그리기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('달리고 싶은 그림을 그려보세요!'), findsOneWidget);
+  });
 }
