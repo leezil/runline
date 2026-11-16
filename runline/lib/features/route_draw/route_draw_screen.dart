@@ -19,7 +19,14 @@ class _RouteDrawScreenState extends State<RouteDrawScreen> {
   RangeValues _distanceRange = const RangeValues(4, 8);
   int _selectedShape = 0;
 
-  void _addPoint(Offset point) => setState(() => _points.add(point));
+  void _addPoint(Offset point) {
+    const canvasSize = 300.0;
+    final constrainedPoint = Offset(
+      point.dx.clamp(0.0, canvasSize),
+      point.dy.clamp(0.0, canvasSize),
+    );
+    setState(() => _points.add(constrainedPoint));
+  }
 
   void _endLine() => setState(() => _points.add(null));
 
@@ -50,13 +57,17 @@ class _RouteDrawScreenState extends State<RouteDrawScreen> {
                   onPanStart: (details) => _addPoint(details.localPosition),
                   onPanUpdate: (details) => _addPoint(details.localPosition),
                   onPanEnd: (_) => _endLine(),
-                  child: CustomPaint(
-                    painter: _SketchPainter(points: _points, fallbackShape: _selectedShape),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F6FD),
-                        border: Border.all(color: AppColors.primary),
-                        borderRadius: BorderRadius.circular(10),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CustomPaint(
+                      size: const Size.square(300),
+                      foregroundPainter: _SketchPainter(points: _points, fallbackShape: _selectedShape),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F6FD),
+                          border: Border.all(color: AppColors.primary),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),
@@ -208,8 +219,8 @@ const _shapeOptions = [
   _SuggestedShape('하트', Icons.favorite_border_rounded),
   _SuggestedShape('달', Icons.nightlight_round),
   _SuggestedShape('번개', Icons.bolt_rounded),
-  _SuggestedShape('꽃', Icons.local_florist_outlined),
   _SuggestedShape('물방울', Icons.water_drop_outlined),
+  _SuggestedShape('직접 그리기', Icons.gesture_outlined),
 ];
 
 class _ShapeOption extends StatelessWidget {
@@ -258,11 +269,77 @@ class _SketchPainter extends CustomPainter {
     }
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width * .28;
-    if (fallbackShape == 0) {
-      final path = Path();
-      for (var i = 0; i < 10; i++) { final a = -math.pi / 2 + i * math.pi / 5; final r = i.isEven ? radius : radius * .45; final p = center + Offset(r * math.cos(a), r * math.sin(a)); i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy); }
-      canvas.drawPath(path..close(), paint);
-    } else { canvas.drawCircle(center, radius, paint); }
+    switch (fallbackShape) {
+      case 0:
+        final path = Path();
+        for (var i = 0; i < 10; i++) {
+          final angle = -math.pi / 2 + i * math.pi / 5;
+          final pointRadius = i.isEven ? radius : radius * .45;
+          final point = center + Offset(pointRadius * math.cos(angle), pointRadius * math.sin(angle));
+          i == 0 ? path.moveTo(point.dx, point.dy) : path.lineTo(point.dx, point.dy);
+        }
+        canvas.drawPath(path..close(), paint);
+      case 1:
+        final path = Path()
+          ..moveTo(center.dx, center.dy + radius)
+          ..cubicTo(center.dx - radius * 1.7, center.dy, center.dx - radius, center.dy - radius, center.dx, center.dy - radius * .25)
+          ..cubicTo(center.dx + radius, center.dy - radius, center.dx + radius * 1.7, center.dy, center.dx, center.dy + radius);
+        canvas.drawPath(path, paint);
+      case 2:
+        final path = Path()
+          ..moveTo(center.dx + radius * .35, center.dy - radius)
+          ..cubicTo(
+            center.dx - radius * 1.05,
+            center.dy - radius * .72,
+            center.dx - radius * 1.05,
+            center.dy + radius * .72,
+            center.dx + radius * .35,
+            center.dy + radius,
+          )
+          ..cubicTo(
+            center.dx - radius * .36,
+            center.dy + radius * .42,
+            center.dx - radius * .36,
+            center.dy - radius * .42,
+            center.dx + radius * .35,
+            center.dy - radius,
+          )
+          ..close();
+        canvas.drawPath(path, paint);
+      case 3:
+        final path = Path()
+          ..moveTo(center.dx + radius * .15, center.dy - radius)
+          ..lineTo(center.dx - radius * .65, center.dy + radius * .05)
+          ..lineTo(center.dx - radius * .05, center.dy + radius * .05)
+          ..lineTo(center.dx - radius * .25, center.dy + radius)
+          ..lineTo(center.dx + radius * .72, center.dy - radius * .2)
+          ..lineTo(center.dx + radius * .12, center.dy - radius * .2)
+          ..close();
+        canvas.drawPath(path, paint);
+      case 4:
+        final path = Path()
+          ..moveTo(center.dx, center.dy - radius)
+          ..cubicTo(
+            center.dx + radius * .78,
+            center.dy - radius * .18,
+            center.dx + radius * .72,
+            center.dy + radius * .54,
+            center.dx,
+            center.dy + radius,
+          )
+          ..cubicTo(
+            center.dx - radius * .72,
+            center.dy + radius * .54,
+            center.dx - radius * .78,
+            center.dy - radius * .18,
+            center.dx,
+            center.dy - radius,
+          )
+          ..close();
+        canvas.drawPath(path, paint);
+      case 5:
+        break;
+    }
   }
   @override
   bool shouldRepaint(covariant _SketchPainter old) => true;

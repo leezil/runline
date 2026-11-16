@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
+import 'club_detail_screens.dart';
 import '../../shared/widgets/app_button.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/icon_label_action.dart';
@@ -72,10 +73,10 @@ class ClubScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconLabelAction(label: '공지', icon: Icons.campaign_outlined, onPressed: () {}),
-            IconLabelAction(label: '멤버', icon: Icons.people_outline, onPressed: () {}),
-            IconLabelAction(label: '클럽 러닝', icon: Icons.run_circle_outlined, onPressed: () {}),
-            IconLabelAction(label: '채팅', icon: Icons.chat_bubble_outline, onPressed: () {}),
+            IconLabelAction(label: '공지', icon: Icons.campaign_outlined, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ClubNoticesScreen()))),
+            IconLabelAction(label: '멤버', icon: Icons.people_outline, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ClubMembersScreen()))),
+            IconLabelAction(label: '클럽 러닝', icon: Icons.run_circle_outlined, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ClubRunningScreen()))),
+            IconLabelAction(label: '채팅', icon: Icons.chat_bubble_outline, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ClubChatScreen()))),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
