@@ -49,6 +49,7 @@ app.*.map.json
 
 # Local build configuration containing the Kakao Native App Key.
 /config/*.local.json
+/config/*.example.json
 
 # Generated Kotlin compiler sessions.
 /android/.kotlin/
