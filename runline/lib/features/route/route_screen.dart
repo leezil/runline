@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/runline_map_view.dart';
 
 class RouteScreen extends StatefulWidget {
   const RouteScreen({super.key});
@@ -22,7 +23,7 @@ class _RouteScreenState extends State<RouteScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (pickedDate != null) {
+    if (mounted && pickedDate != null) {
       setState(() => _selectedDate = pickedDate);
     }
   }
@@ -48,28 +49,15 @@ class _RouteScreenState extends State<RouteScreen> {
         const SizedBox(height: AppSpacing.xs),
         Text('저장한 러닝 루트와 코스를 확인하세요.', style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.md),
-        Semantics(
-          label: '테스트용 지도 영역',
-          child: Container(
-            height: 300,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD9DCE2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.map_outlined, size: 40, color: AppColors.subText),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text('테스트용 지도 영역', style: textTheme.titleMedium),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text('지도 SDK 연결 전 미리보기', style: textTheme.bodySmall),
-                ],
-              ),
-            ),
+        Container(
+          height: 300,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xFFD9DCE2),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
           ),
+          child: const RunlineMapView(),
         ),
         const SizedBox(height: AppSpacing.lg),
         Row(
@@ -80,11 +68,15 @@ class _RouteScreenState extends State<RouteScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _selectDate,
                   icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                  label: Text('${_selectedDate.year}.${_selectedDate.month.toString().padLeft(2, '0')}.${_selectedDate.day.toString().padLeft(2, '0')}'),
+                  label: Text(
+                    '${_selectedDate.year}.${_selectedDate.month.toString().padLeft(2, '0')}.${_selectedDate.day.toString().padLeft(2, '0')}',
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.text,
                     side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -117,6 +109,7 @@ class _RouteScreenState extends State<RouteScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         Text('저장한 루트', style: textTheme.titleMedium),
+        Text('예시 루트 미리보기', style: textTheme.bodySmall),
         const SizedBox(height: AppSpacing.sm),
         GridView.count(
           crossAxisCount: 2,
@@ -144,7 +137,11 @@ class _RouteScreenState extends State<RouteScreen> {
 }
 
 class _RouteItem extends StatelessWidget {
-  const _RouteItem({required this.title, required this.detail, required this.color});
+  const _RouteItem({
+    required this.title,
+    required this.detail,
+    required this.color,
+  });
 
   final String title;
   final String detail;
@@ -167,13 +164,20 @@ class _RouteItem extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.map_outlined, size: 44, color: AppColors.subText),
+                const Icon(
+                  Icons.map_outlined,
+                  size: 44,
+                  color: AppColors.subText,
+                ),
                 Positioned(
                   left: AppSpacing.xs,
                   top: AppSpacing.xs,
                   child: Container(
                     padding: const EdgeInsets.all(AppSpacing.xs),
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(Icons.route_outlined, size: 18, color: color),
                   ),
                 ),
@@ -192,9 +196,19 @@ class _RouteItem extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: AppSpacing.xxs),
-        Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          detail,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       ],
     ),
   );
