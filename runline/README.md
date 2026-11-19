@@ -18,19 +18,38 @@
 
 ## Chrome에서 실행하기
 
-Flutter SDK와 Chrome이 필요합니다. 저장소 루트에서 `pubspec.yaml`이 있는 앱 폴더로 이동합니다.
+Flutter SDK와 Chrome이 필요합니다. PR의 원형 **START**, **루트 그리기**, **목표 설정** 화면을 확인하려면 `feat/home-start-layout` 브랜치의 앱을 실행하세요.
+
+앱 폴더의 `config/kakao.web.local.json`에 카카오 JavaScript 키를 설정하고, 카카오 JavaScript SDK의 허용 도메인에 `http://localhost:5000`을 등록합니다. 실제 경로 추천을 사용하려면 같은 앱 폴더의 `config/route-api.local.json`에 추천 서버 주소와 개발용 토큰을 설정합니다. [지도 및 추천 API 설정](config/README.md)
+
+**별도 통합 작업 폴더를 만든 경우** 아래 블록 전체를 원래 작업 폴더의 PowerShell에 붙여 넣으세요. 통합 폴더가 없거나 브랜치가 다르면 실행 전에 멈춥니다.
 
 ```powershell
-cd runline
-flutter pub get
+& {
+  Set-Location -LiteralPath .integration-main-app1/runline -ErrorAction Stop
+  if ((git branch --show-current) -ne 'feat/home-start-layout') {
+    throw 'feat/home-start-layout 브랜치로 이동한 뒤 실행하세요.'
+  }
+
+  $runArgs = @(
+    'run', '-d', 'chrome',
+    '--web-hostname', 'localhost',
+    '--web-port', '5000',
+    '--dart-define-from-file=config/kakao.web.local.json'
+  )
+  if (Test-Path -LiteralPath config/route-api.local.json) {
+    $runArgs += '--dart-define-from-file=config/route-api.local.json'
+  }
+  flutter @runArgs
+}
 ```
 
-`config/kakao.web.local.json`에 `KAKAO_JAVASCRIPT_KEY`를 설정하고 카카오 JavaScript SDK 허용 도메인에 `http://localhost:5000`을 등록합니다. 다음 명령으로 실행합니다.
+**저장소를 일반 폴더에 체크아웃한 경우** 해당 저장소의 `runline` 앱 폴더에서 아래 명령을 실행합니다. PR을 확인하는 중이라면 먼저 `git branch --show-current`로 브랜치가 맞는지 확인하세요.
 
 ```powershell
 flutter run -d chrome --web-hostname localhost --web-port 5000 --dart-define-from-file=config/kakao.web.local.json
 ```
 
-실제 그림 코스 추천을 사용하려면 `config/route-api.local.json`에 추천 서버 주소와 개발용 토큰을 설정하고, 실행 명령에 `--dart-define-from-file=config/route-api.local.json`을 추가합니다. 추천 서버에는 HTTPS `GET /v1/health`와 Bearer 인증을 사용하는 `POST /v1/routes`가 필요합니다. [지도 및 추천 API 설정](config/README.md)
+일반 폴더에서 그림 코스 추천도 사용하려면 실행 명령 끝에 `--dart-define-from-file=config/route-api.local.json`을 붙입니다. 로컬 설정 파일을 변경했거나 5000번 포트에 앱이 이미 떠 있으면 기존 Flutter 실행을 종료한 뒤 다시 실행하세요.
 
 웹 러닝을 시작하려면 브라우저의 위치 권한을 허용해야 합니다. 기록은 현재 브라우저 프로필과 실행 주소의 IndexedDB에 저장되므로, 이전 기록을 보려면 같은 프로필과 주소로 접속합니다.
