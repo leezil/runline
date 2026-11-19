@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'app/app_theme.dart';
+import 'app/kakao_map_bootstrap.dart';
 import 'features/navigation/main_shell.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await KakaoMapBootstrap.initialize();
   runApp(const RunlineApp());
 }
 
