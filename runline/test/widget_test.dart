@@ -163,4 +163,36 @@ void main() {
     expect(find.text('5.1km'), findsOneWidget);
   });
 
+  testWidgets('opens feed post detail and author profile', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+    await tester.tap(find.byIcon(Icons.article_outlined));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('오늘은 별 하나를 달렸어요 ⭐'));
+    await tester.pumpAndSettle();
+    expect(find.text('굿ㅈㄷ'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('뒤로'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.ancestor(
+        of: find.text('민'),
+        matching: find.byType(CircleAvatar),
+      ).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.grid_view_outlined), findsOneWidget);
+  });
+
+  testWidgets('shows the photo preview in a photo feed detail', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+    await tester.tap(find.byIcon(Icons.article_outlined));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('가을 한강은 언제나 좋아요 🍂'), 200);
+    await tester.tap(find.text('가을 한강은 언제나 좋아요 🍂'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CustomPaint), findsWidgets);
+  });
+
 }
