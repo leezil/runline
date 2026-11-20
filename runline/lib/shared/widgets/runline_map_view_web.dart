@@ -6,6 +6,7 @@ import 'package:kakao_map_sdk/kakao_map_sdk.dart' show KakaoMapOption, LatLng;
 import 'package:web/web.dart' as web;
 
 import 'running_map_data.dart';
+import '../../features/facilities/facility.dart';
 
 @JS('kakao.maps.load')
 external void _loadMaps(JSFunction callback);
@@ -13,6 +14,8 @@ external void _loadMaps(JSFunction callback);
 @JS('kakao.maps.LatLng')
 extension type _Position._(JSObject _) implements JSObject {
   external factory _Position(double latitude, double longitude);
+  external double getLat();
+  external double getLng();
 }
 
 extension type _MapOptions._(JSObject _) implements JSObject {
@@ -32,12 +35,15 @@ extension type _KakaoMap._(JSObject _) implements JSObject {
   external void setCenter(_Position position);
   external void setLevel(int level);
   external void setBounds(_Bounds bounds);
+  external _Bounds getBounds();
 }
 
 @JS('kakao.maps.LatLngBounds')
 extension type _Bounds._(JSObject _) implements JSObject {
   external factory _Bounds();
   external void extend(_Position point);
+  external _Position getSouthWest();
+  external _Position getNorthEast();
 }
 
 extension type _LineOptions._(JSObject _) implements JSObject {
@@ -141,6 +147,9 @@ class RunlineMapView extends StatefulWidget {
     this.recenterToken = 0,
     this.onUserGesture,
     this.routeRun = false,
+    this.facilities = const [],
+    this.onBoundsChanged,
+    this.onFacilityTap,
   });
 
   final LatLng initialPosition;
@@ -155,6 +164,9 @@ class RunlineMapView extends StatefulWidget {
   final bool followLocation, routeRun;
   final int recenterToken;
   final VoidCallback? onUserGesture;
+  final List<Facility> facilities;
+  final ValueChanged<FacilityBounds>? onBoundsChanged;
+  final ValueChanged<Facility>? onFacilityTap;
 
   @override
   State<RunlineMapView> createState() => _RunlineMapViewState();
@@ -171,6 +183,12 @@ class _RunlineMapViewState extends State<RunlineMapView> {
   final List<_Polyline> _lines = [];
   _LocationMarker? _marker;
   JSFunction? _dragStart;
+  JSFunction? _idle;
+  final _facilityMarkers =
+      <
+        String,
+        ({_LocationMarker marker, StreamSubscription<web.MouseEvent> click})
+      >{};
   final List<StreamSubscription<web.Event>> _interactions = [];
   bool _routeFailed = false, _fitted = false, _wasFollowing = false;
   int _lastRecenter = -1;
@@ -178,6 +196,7 @@ class _RunlineMapViewState extends State<RunlineMapView> {
   @override
   void didUpdateWidget(covariant RunlineMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.facilities != widget.facilities) _updateFacilities();
     if (oldWidget.routeCoordinates != widget.routeCoordinates) _fitted = false;
     if (oldWidget.routeCoordinates != widget.routeCoordinates ||
         oldWidget.trackSegments != widget.trackSegments ||
@@ -188,6 +207,66 @@ class _RunlineMapViewState extends State<RunlineMapView> {
         oldWidget.followLocation != widget.followLocation ||
         oldWidget.recenterToken != widget.recenterToken) {
       _updateRoute();
+    }
+  }
+
+  void _reportBounds() {
+    if (!mounted || _map == null || widget.onBoundsChanged == null) return;
+    final bounds = _map!.getBounds();
+    final sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
+    widget.onBoundsChanged!(
+      FacilityBounds(sw.getLng(), sw.getLat(), ne.getLng(), ne.getLat()),
+    );
+  }
+
+  void _updateFacilities() {
+    final map = _map;
+    if (map == null) return;
+    final ids = widget.facilities.map((f) => f.id).toSet();
+    for (final id in _facilityMarkers.keys.toList()) {
+      if (!ids.contains(id)) {
+        final old = _facilityMarkers.remove(id)!;
+        old.marker.setMap(null);
+        old.click.cancel();
+      }
+    }
+    for (final facility in widget.facilities) {
+      final position = _Position(
+        facility.position.latitude,
+        facility.position.longitude,
+      );
+      final existing = _facilityMarkers[facility.id];
+      if (existing != null) {
+        existing.marker.setPosition(position);
+        continue;
+      }
+      final button = web.HTMLButtonElement()
+        ..type = 'button'
+        ..textContent = facility.type == FacilityType.toilet ? 'WC' : 'CCTV'
+        ..title = facility.name
+        ..setAttribute('aria-label', '${facility.type.label} ${facility.name}');
+      final color = facility.type == FacilityType.toilet
+          ? '#087f8c'
+          : '#7357b8';
+      button.style.cssText =
+          'border:2px solid white;border-radius:12px;background:$color;color:white;font:bold 11px sans-serif;padding:6px;cursor:pointer;box-shadow:0 1px 4px #888;';
+      final click = button.onClick.listen((event) {
+        event.stopPropagation();
+        final current = widget.facilities
+            .where((f) => f.id == facility.id)
+            .firstOrNull;
+        if (current != null) widget.onFacilityTap?.call(current);
+      });
+      final marker = _LocationMarker(
+        _MarkerOptions(
+          position: position,
+          content: button,
+          xAnchor: .5,
+          yAnchor: 1,
+          zIndex: 100,
+        ),
+      )..setMap(map);
+      _facilityMarkers[facility.id] = (marker: marker, click: click);
     }
   }
 
@@ -337,8 +416,14 @@ class _RunlineMapViewState extends State<RunlineMapView> {
           widget.onUserGesture?.call();
         }).toJS;
         _addMapListener(_map!, 'dragstart', _dragStart!);
+        if (widget.onBoundsChanged != null) {
+          _idle = _reportBounds.toJS;
+          _addMapListener(_map!, 'idle', _idle!);
+        }
         setState(() => _ready = true);
         _updateRoute();
+        _updateFacilities();
+        _reportBounds();
       } else {
         final center = _map!.getCenter();
         _map!.relayout();
@@ -357,6 +442,14 @@ class _RunlineMapViewState extends State<RunlineMapView> {
       if (_map != null && _dragStart != null) {
         _removeMapListener(_map!, 'dragstart', _dragStart!);
       }
+      if (_map != null && _idle != null) {
+        _removeMapListener(_map!, 'idle', _idle!);
+      }
+      for (final overlay in _facilityMarkers.values) {
+        overlay.marker.setMap(null);
+        overlay.click.cancel();
+      }
+      _facilityMarkers.clear();
       for (final line in _lines) {
         line.setMap(null);
       }

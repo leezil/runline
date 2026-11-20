@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../facilities/facility_api.dart';
+import '../facilities/facility_controller.dart';
+import '../facilities/facility_controls.dart';
+
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/runline_map_view.dart';
 import 'running_timer.dart';
@@ -21,6 +25,7 @@ class RunningScreen extends StatefulWidget {
     this.selectedRoute,
     this.location,
     this.history,
+    this.facilityApi,
   });
 
   static const homeStartRunningRoute = 'Home_startRunning';
@@ -28,6 +33,7 @@ class RunningScreen extends StatefulWidget {
   final RunningTimer Function() createTimer;
   final RunningLocation? location;
   final RunningHistoryRepository? history;
+  final FacilityApi? facilityApi;
 
   /// The optional goal for this run. Direct START remains a run without a goal.
   final RunningGoal? goal;
@@ -52,10 +58,13 @@ class _RunningScreenState extends State<RunningScreen>
   bool _foreground = true;
   bool _following = true;
   int _recenter = 0;
+  late final FacilityController _facilities;
 
   @override
   void initState() {
     super.initState();
+    _facilities = FacilityController(widget.facilityApi ?? FacilityApi())
+      ..addListener(_facilityChanged);
     _timer = widget.createTimer();
     _run = RunningController(
       location: widget.location ?? GeolocatorRunningLocation(),
@@ -154,6 +163,8 @@ class _RunningScreenState extends State<RunningScreen>
 
   @override
   void dispose() {
+    _facilities.removeListener(_facilityChanged);
+    _facilities.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _recorder?.removeListener(_historyChanged);
     _recorder?.dispose();
@@ -163,6 +174,7 @@ class _RunningScreenState extends State<RunningScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _facilities.setActive(state == AppLifecycleState.resumed);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _foreground = false;
@@ -170,6 +182,10 @@ class _RunningScreenState extends State<RunningScreen>
     } else if (state == AppLifecycleState.resumed) {
       _foreground = true;
     }
+  }
+
+  void _facilityChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -188,6 +204,10 @@ class _RunningScreenState extends State<RunningScreen>
               Semantics(
                 label: '러닝 지도',
                 child: RunlineMapView(
+                  facilities: _facilities.items,
+                  onBoundsChanged: _facilities.updateBounds,
+                  onFacilityTap: (facility) =>
+                      showFacilityDetails(context, facility),
                   routeCoordinates: _route?.canRun == true
                       ? _route!.coordinates
                       : const [],
@@ -205,6 +225,12 @@ class _RunningScreenState extends State<RunningScreen>
                     }
                   },
                 ),
+              ),
+              Positioned(
+                left: 8,
+                right: 8,
+                top: 8,
+                child: FacilityControls(controller: _facilities),
               ),
               Positioned(
                 right: 8,

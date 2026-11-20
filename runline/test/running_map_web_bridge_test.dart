@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart' show LatLng;
 import 'package:web/web.dart' as web;
 import 'package:runline/shared/widgets/runline_map_view.dart';
+import 'package:runline/features/facilities/facility.dart';
 
 @JS('eval')
 external JSAny? evaluate(String source);
@@ -23,9 +24,10 @@ void main() {
       const f = globalThis.__runlineMapFixture;
       globalThis.kakao = {maps: {
         load: cb => cb(),
-        LatLng: function(lat,lng) {this.lat=lat;this.lng=lng;},
+        LatLng: function(lat,lng) {this.lat=lat;this.lng=lng;this.getLat=()=>lat;this.getLng=()=>lng;},
         LatLngBounds: function() {this.extend = p => {};},
         Map: function(el, opts) {f.map=this;this.relayout=()=>{};
+          this.getBounds=()=>({getSouthWest:()=>new kakao.maps.LatLng(37.49,127.09),getNorthEast:()=>new kakao.maps.LatLng(37.51,127.11)});
           this.getCenter=()=>opts.center;this.setCenter=p=>{f.centers++;f.center=p;};
           this.setBounds=b=>{f.bounds++;};this.setLevel=l=>{f.levels++;};},
         Polyline: function(opts) {this.opts=opts;f.lines.push(this);
@@ -37,25 +39,42 @@ void main() {
       }};
     ''');
       var gestures = 0;
+      var selections = 0;
+      FacilityBounds? reportedBounds;
+      const facility = Facility(
+        id: 'toilet-test',
+        type: FacilityType.toilet,
+        name: '테스트 화장실',
+        position: LatLng(37.5, 127.1),
+        address: '테스트 주소',
+        description: '상시',
+      );
       const route = [LatLng(37.5, 127.1), LatLng(37.501, 127.1)];
-      Widget view({LatLng? position, bool follow = true, int recenter = 0}) =>
-          MaterialApp(
-            home: SizedBox(
-              width: 400,
-              height: 300,
-              child: RunlineMapView(
-                routeCoordinates: route,
-                remainingRouteSegments: const [route],
-                trackSegments: const [route],
-                completedRouteSegments: const [route],
-                routeRun: true,
-                currentPosition: position,
-                followLocation: follow,
-                recenterToken: recenter,
-                onUserGesture: () => gestures++,
-              ),
-            ),
-          );
+      Widget view({
+        LatLng? position,
+        bool follow = true,
+        int recenter = 0,
+        List<Facility> facilities = const [],
+      }) => MaterialApp(
+        home: SizedBox(
+          width: 400,
+          height: 300,
+          child: RunlineMapView(
+            facilities: facilities,
+            onBoundsChanged: (value) => reportedBounds = value,
+            onFacilityTap: (_) => selections++,
+            routeCoordinates: route,
+            remainingRouteSegments: const [route],
+            trackSegments: const [route],
+            completedRouteSegments: const [route],
+            routeRun: true,
+            currentPosition: position,
+            followLocation: follow,
+            recenterToken: recenter,
+            onUserGesture: () => gestures++,
+          ),
+        ),
+      );
       await tester.pumpWidget(view(position: route.first));
       final script = web.document.querySelector(
         'script[src*="dapi.kakao.com"]',
@@ -101,6 +120,27 @@ void main() {
       await tester.pumpWidget(view(position: route.last, recenter: 1));
       await tester.pump();
       expect(count('globalThis.__runlineMapFixture.centers'), centers + 2);
+      evaluate('globalThis.__runlineMapFixture.listeners.idle()');
+      expect(reportedBounds!.west, 127.09);
+      expect(reportedBounds!.south, 37.49);
+      await tester.pumpWidget(
+        view(position: route.last, recenter: 1, facilities: const [facility]),
+      );
+      await tester.pump();
+      expect(
+        count('globalThis.__runlineMapFixture.markers.filter(m=>m.map).length'),
+        2,
+      );
+      evaluate(
+        'globalThis.__runlineMapFixture.markers.find(m=>m.opts.content.tagName==="BUTTON").opts.content.click()',
+      );
+      expect(selections, 1);
+      await tester.pumpWidget(view(position: route.last, recenter: 1));
+      await tester.pump();
+      expect(
+        count('globalThis.__runlineMapFixture.markers.filter(m=>m.map).length'),
+        1,
+      );
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
       expect(
