@@ -27,17 +27,14 @@ cd runline
 flutter pub get
 ```
 
-앱 폴더의 `config/kakao.web.local.json`에 카카오 JavaScript 키를 설정하고, 카카오 JavaScript SDK의 허용 도메인에 `http://localhost:5000`을 등록합니다.
+앱의 지도·경로·시설 API 설정은 `config/app.local.json` 한 파일에서 관리합니다. 처음에는 `config/app.local.example.json`을 복사하고 키·서버 주소·토큰을 입력하세요. 실제 설정 파일은 Git에서 제외되며 빈 예제만 커밋합니다. [설정 항목 안내](config/README.md)
 
 ```powershell
-flutter run -d chrome --web-hostname localhost --web-port 5000 --dart-define-from-file=config/kakao.web.local.json
+Copy-Item config/app.local.example.json config/app.local.json
+flutter run -d chrome --web-hostname localhost --web-port 5000 --dart-define-from-file=config/app.local.json
 ```
 
-그림 코스 추천도 사용하려면 `config/route-api.local.json`에 서버 주소와 개발용 토큰을 설정하고 아래 명령을 실행합니다. [지도 및 추천 API 설정](config/README.md)
-
-```powershell
-flutter run -d chrome --web-hostname localhost --web-port 5000 --dart-define-from-file=config/kakao.web.local.json --dart-define-from-file=config/route-api.local.json
-```
+이미 `app.local.json`이 있다면 복사 명령은 생략하세요. 카카오 JavaScript SDK의 허용 도메인에 `http://localhost:5000`을 등록합니다. 저장소 루트의 `start-chrome.ps1`도 같은 설정 파일을 사용합니다.
 
 로컬 설정을 바꿨거나 5000번 포트에 앱이 이미 실행 중이면 기존 Flutter를 종료한 뒤 다시 실행하세요.
 

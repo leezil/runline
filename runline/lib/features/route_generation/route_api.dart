@@ -5,16 +5,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:kakao_map_sdk/kakao_map_sdk.dart' show LatLng;
 
+import '../../shared/config/api_config.dart';
 import '../route_drawing/drawing_controller.dart';
 import '../route_recommendation/recommended_route.dart';
 
 class RouteApiConfig {
   const RouteApiConfig({
-    this.baseUrl = const String.fromEnvironment(
-      'ROUTE_API_BASE_URL',
-      defaultValue: 'https://01b0-61-98-40-101.ngrok-free.app',
-    ),
-    this.token = const String.fromEnvironment('ROUTE_API_TOKEN'),
+    this.baseUrl = ApiConfig.baseUrl,
+    this.token = ApiConfig.token,
   });
 
   final String baseUrl;
@@ -30,7 +28,7 @@ class RouteApiConfig {
         uri.hasQuery ||
         uri.hasFragment) {
       throw const RouteApiException(
-        'ROUTE_API_BASE_URL에 올바른 HTTPS 주소를 설정해주세요.',
+        'API_BASE_URL에 올바른 HTTPS 주소를 설정해주세요.',
       );
     }
     return uri.replace(
@@ -278,7 +276,7 @@ class RouteApi implements RouteService {
     if (_generating) throw const RouteApiException('이미 경로를 생성하고 있습니다.');
     if (!config.hasToken) {
       throw const RouteApiException(
-        '로컬 설정 파일에 ROUTE_API_TOKEN을 입력하고 앱을 다시 실행해주세요.',
+        '로컬 설정 파일에 API_TOKEN을 입력하고 앱을 다시 실행해주세요.',
       );
     }
     _generating = true;
