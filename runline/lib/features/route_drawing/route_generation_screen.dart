@@ -245,7 +245,7 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
             RouteSearchSettings(controller: _settings, enabled: !_busy),
             if (widget.service == null && !widget.config.hasToken)
               const Text(
-                'ROUTE_API_TOKEN 설정이 필요합니다. config/route-api.local.json에 공유 개발 토큰을 설정하고 다시 실행해주세요.',
+                'API_TOKEN 설정이 필요합니다. config/app.local.json에 공유 개발 토큰을 설정하고 다시 실행해주세요.',
               ),
             const Text(
               'Flutter Web 토큰은 브라우저에서 확인 가능합니다. 공유 테스트 토큰을 쓰는 개발 환경에서만 직접 호출하세요.',

@@ -14,13 +14,11 @@ $env:PUB_CACHE = Join-Path $PSScriptRoot '.tools\pub-cache'
 Push-Location (Join-Path $PSScriptRoot 'runline')
 try {
     Write-Host 'Chrome preview: press r to hot reload, R to restart, q to stop.'
-    $configArgs = @()
-    foreach ($name in @('kakao.web', 'route-api', 'facilities')) {
-        $configPath = "config/$name.local.json"
-        if (Test-Path -LiteralPath $configPath) {
-            $configArgs += "--dart-define-from-file=$configPath"
-        }
+    $configPath = 'config/app.local.json'
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw 'Missing config/app.local.json. Copy config/app.local.example.json and fill in your API settings.'
     }
+    $configArgs = @("--dart-define-from-file=$configPath")
     & $flutter run -d chrome --web-hostname localhost --web-port $Port @configArgs
     if ($LASTEXITCODE -ne 0) { throw 'Chrome preview failed.' }
 } finally {

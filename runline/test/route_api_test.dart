@@ -224,7 +224,7 @@ void main() {
         {'status': 'ok'},
       ]) {
         final api = RouteApi(
-          config: const RouteApiConfig(token: 'test-placeholder'),
+          config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
           client: MockClient((request) async {
             expect(request.headers.containsKey('authorization'), isFalse);
             return http.Response(jsonEncode(value), 200);
@@ -329,7 +329,7 @@ void main() {
     () async {
       final calls = <http.Request>[];
       final api = RouteApi(
-        config: const RouteApiConfig(token: 'unit-test-placeholder'),
+        config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'unit-test-placeholder'),
         client: MockClient((request) async {
           calls.add(request);
           return http.Response(
@@ -385,7 +385,7 @@ void main() {
   for (final code in [400, 401, 403, 413, 415, 422, 429, 500, 502]) {
     test('HTTP $code is handled before parsing HTML', () async {
       final api = RouteApi(
-        config: const RouteApiConfig(token: 'test-placeholder'),
+        config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
         client: MockClient(
           (_) async => http.Response('<html>private response</html>', code),
         ),
@@ -416,7 +416,7 @@ void main() {
         '{"api_version":"v1","source":"osm","found":true,"candidates":[{"acceptable":true}]}',
       ]) {
         final api = RouteApi(
-          config: const RouteApiConfig(token: 'test-placeholder'),
+          config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
           client: MockClient((_) async => http.Response(body, 200)),
         );
         addTearDown(api.close);
@@ -432,7 +432,7 @@ void main() {
     final pending = Completer<http.Response>();
     var calls = 0;
     final api = RouteApi(
-      config: const RouteApiConfig(token: 'test-placeholder'),
+      config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
       timeout: const Duration(milliseconds: 20),
       client: MockClient((_) {
         calls++;
@@ -458,7 +458,7 @@ void main() {
     expect(calls, 1);
     pending.complete(http.Response('{}', 200));
     final offline = RouteApi(
-      config: const RouteApiConfig(token: 'test-placeholder'),
+      config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
       client: MockClient(
         (_) async => throw http.ClientException('hidden details'),
       ),
@@ -472,7 +472,7 @@ void main() {
       var now = DateTime.utc(2026, 11, 6);
       var calls = 0;
       final api = RouteApi(
-        config: const RouteApiConfig(token: 'test-placeholder'),
+        config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
         now: () => now,
         client: MockClient((_) async {
           calls++;

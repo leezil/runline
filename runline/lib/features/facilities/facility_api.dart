@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../shared/config/api_config.dart';
 import 'facility.dart';
 
 class FacilityApiException implements Exception {
@@ -21,14 +22,8 @@ class FacilityResult {
 class FacilityApi {
   FacilityApi({
     http.Client? client,
-    this.baseUrl = const String.fromEnvironment(
-      'PLACES_API_BASE_URL',
-      defaultValue: String.fromEnvironment('ROUTE_API_BASE_URL'),
-    ),
-    this.token = const String.fromEnvironment(
-      'PLACES_API_TOKEN',
-      defaultValue: String.fromEnvironment('ROUTE_API_TOKEN'),
-    ),
+    this.baseUrl = ApiConfig.baseUrl,
+    this.token = ApiConfig.token,
   }) : _client = client ?? http.Client();
   final http.Client _client;
   final String baseUrl, token;
