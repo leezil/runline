@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../route_draw/route_draw_screen.dart';
+import '../running/running_progress_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_button.dart';
@@ -44,8 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _finishGoalSetting() {
     setState(() => _isSettingGoal = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$_goalDistance km / $_goalTime분 목표를 설정했어요.')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RunningProgressScreen(goalDistance: _goalDistance, goalTime: _goalTime),
+      ),
     );
   }
 
@@ -114,7 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         AppCard(
-          onTap: () {},
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const RunningProgressScreen()),
+          ),
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
           child: Column(
             mainAxisSize: MainAxisSize.min,

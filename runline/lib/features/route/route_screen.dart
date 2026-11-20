@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/test_map_placeholder.dart';
 
 class RouteScreen extends StatefulWidget {
   const RouteScreen({super.key});
@@ -48,29 +49,7 @@ class _RouteScreenState extends State<RouteScreen> {
         const SizedBox(height: AppSpacing.xs),
         Text('저장한 러닝 루트와 코스를 확인하세요.', style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.md),
-        Semantics(
-          label: '테스트용 지도 영역',
-          child: Container(
-            height: 300,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD9DCE2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.map_outlined, size: 40, color: AppColors.subText),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text('테스트용 지도 영역', style: textTheme.titleMedium),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text('지도 SDK 연결 전 미리보기', style: textTheme.bodySmall),
-                ],
-              ),
-            ),
-          ),
-        ),
+        const TestMapPlaceholder(height: 300),
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [

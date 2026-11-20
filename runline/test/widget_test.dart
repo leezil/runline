@@ -150,4 +150,5 @@ void main() {
 
     expect(find.text('달리고 싶은 그림을 그려보세요!'), findsOneWidget);
   });
+
 }
