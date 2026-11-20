@@ -151,4 +151,16 @@ void main() {
     expect(find.text('달리고 싶은 그림을 그려보세요!'), findsOneWidget);
   });
 
+  testWidgets('opens a saved route detail from the route tab', (WidgetTester tester) async {
+    await tester.pumpWidget(const RunlineApp());
+    await tester.tap(find.byIcon(Icons.alt_route_outlined));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('한강 여의도 순환 코스'), 200);
+    await tester.tap(find.text('한강 여의도 순환 코스'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('피드에 공유하기'), findsOneWidget);
+    expect(find.text('5.1km'), findsOneWidget);
+  });
+
 }
