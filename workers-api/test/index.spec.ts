@@ -2,6 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashToken } from "../src/features/auth/tokens";
 import worker from "../src/index";
+import { imageSignature, optimizeImage } from "../src/features/media/image-pipeline";
 
 const api = "https://example.com/api/v1";
 
@@ -31,6 +32,16 @@ it("serves the public health check", async () => {
 	const response = await SELF.fetch(`${api}/health`);
 	expect(response.status).toBe(200);
 	expect(await response.json()).toEqual({ ok: true, service: "runline-api" });
+});
+
+it("normalizes real images with the Workers Images binding and stores only optimized variants in R2", async () => {
+	const source = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWNgoAgAAAA/AAFJy1onAAAAAElFTkSuQmCC"), (char) => char.charCodeAt(0));
+	const optimized = await optimizeImage(env, new File([source], "source.png", { type: "image/png" }), "feed");
+	expect(optimized).toMatchObject({ width: 5, height: 3 });
+	expect(imageSignature(optimized.full)).toBe("image/webp");
+	expect(imageSignature(optimized.thumbnail)).toBe("image/webp");
+	await env.MEDIA_BUCKET.put("test/optimized.webp", optimized.full);
+	expect((await env.MEDIA_BUCKET.get("test/optimized.webp"))?.size).toBe(optimized.full.length);
 });
 
 describe("Kakao login", () => {
@@ -119,6 +130,19 @@ describe("Kakao login", () => {
 
 it.each([
 	["GET", "/auth/me"],
+	["GET", "/me/club"],
+	["PATCH", "/me/profile"],
+	["GET", "/clubs"],
+	["GET", "/clubs/recommended"],
+	["POST", "/clubs"],
+	["POST", "/clubs/demo/join"],
+	["GET", "/clubs/demo/home"],
+	["GET", "/clubs/demo/feed"],
+	["GET", "/clubs/demo/members"],
+	["POST", "/clubs/demo/notices"],
+	["POST", "/clubs/demo/notices/demo/attachments"],
+	["GET", "/clubs/demo/runs"],
+	["POST", "/clubs/demo/runs/demo/participants"],
 	["POST", "/feed/posts"],
 	["POST", "/crews/demo/join"],
 ])("requires Runline authentication for %s %s", async (method, path) => {

@@ -12,6 +12,9 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	"images": { "binding": "IMAGES" },
+	"r2_buckets": [{ "binding": "MEDIA_BUCKET", "bucket_name": "runline-media" }],
+	"triggers": { "crons": ["17 3 * * *"] },
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",

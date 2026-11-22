@@ -12,3 +12,15 @@ export async function withDatabase<T>(
 		await client.end().catch(() => undefined);
 	}
 }
+
+export async function withTransaction<T>(client: Client, run: () => Promise<T>): Promise<T> {
+	await client.query("BEGIN");
+	try {
+		const result = await run();
+		await client.query("COMMIT");
+		return result;
+	} catch (error) {
+		await client.query("ROLLBACK").catch(() => undefined);
+		throw error;
+	}
+}
