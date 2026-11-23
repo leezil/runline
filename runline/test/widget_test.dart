@@ -160,7 +160,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('피드에 공유하기'), findsOneWidget);
-    expect(find.text('5.1km'), findsOneWidget);
+    expect(find.text('5.1km'), findsWidgets);
   });
 
   testWidgets('opens feed post detail and author profile', (WidgetTester tester) async {

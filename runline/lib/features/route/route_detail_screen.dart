@@ -110,15 +110,16 @@ class _RouteDetailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const TestMapPlaceholder(height: 220, borderRadius: 14),
         const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(child: Text(title, style: textTheme.titleLarge)),
-            Text(date, style: textTheme.bodySmall),
-          ],
+        Text(title, textAlign: TextAlign.center, style: textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          '$date · 오후 7:00',
+          textAlign: TextAlign.center,
+          style: textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.md),
         Row(
@@ -149,13 +150,13 @@ class _RouteStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      Text(label, style: Theme.of(context).textTheme.bodySmall),
+      Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
       const SizedBox(height: AppSpacing.xxs),
       FittedBox(
         fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         child: Text(
           value,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
