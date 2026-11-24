@@ -5,6 +5,7 @@ import { verifyKakaoUser } from "./kakao";
 import { requireAuth, type AuthEnv } from "./require-auth";
 import { endSession, refreshSession, startSession } from "./session-service";
 import { refreshTokenPattern } from "./tokens";
+import { invalidateChat } from "../chat/chat-binding";
 
 const authRoutes = new Hono<AuthEnv>();
 
@@ -39,13 +40,15 @@ authRoutes.post("/kakao", async (c) => {
 
 authRoutes.post("/refresh", async (c) => {
 	const token = await readToken(c, "refreshToken", refreshTokenPattern);
-	const session = await refreshSession(c.env.HYPERDRIVE.connectionString, token);
+	const { clubId, ...session } = await refreshSession(c.env.HYPERDRIVE.connectionString, token);
+	await invalidateChat(c.env, clubId);
 	return c.json({ ok: true, ...session });
 });
 
 authRoutes.post("/logout", async (c) => {
 	const token = await readToken(c, "refreshToken", refreshTokenPattern);
-	await endSession(c.env.HYPERDRIVE.connectionString, token);
+	const clubId = await endSession(c.env.HYPERDRIVE.connectionString, token);
+	await invalidateChat(c.env, clubId);
 	return c.body(null, 204);
 });
 

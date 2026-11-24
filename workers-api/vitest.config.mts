@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE ??= "postgresql://test:test@127.0.0.1:5432/test";
 
 export default defineConfig({
-	test: { include: ["test/index.spec.ts"] },
+	test: { include: ["test/index.spec.ts", "test/chat-worker.spec.ts"] },
 	plugins: [
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.jsonc" },

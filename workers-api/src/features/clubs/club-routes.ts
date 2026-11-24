@@ -8,6 +8,7 @@ import { listFeed } from "./feed-service";
 import { invalid } from "./errors";
 import { uploadImage, getImage } from "../media/image-service";
 import { imageSignature } from "../media/image-pipeline";
+import { invalidateChat } from "../chat/chat-binding";
 import { clubInput, noticeInput, object, profileInput, readPage, runInput, text, uuid } from "./validation";
 
 const clubRoutes = new Hono<AuthEnv>();
@@ -57,10 +58,12 @@ clubRoutes.get("/:clubId/home", async (c) => c.json({ ok: true, ...await clubs.c
 clubRoutes.patch("/:clubId", async (c) => c.json({ ok: true, club: await clubs.editClub(connection(c), user(c), id(c), clubInput(await json(c), true)) }));
 clubRoutes.delete("/:clubId", async (c) => {
 	await clubs.closeClub(connection(c), user(c), id(c));
+	await invalidateChat(c.env, id(c));
 	return c.body(null, 204);
 });
 clubRoutes.post("/:clubId/leave", async (c) => {
 	await clubs.leaveClub(connection(c), user(c), id(c));
+	await invalidateChat(c.env, id(c));
 	return c.body(null, 204);
 });
 clubRoutes.post("/:clubId/ownership", async (c) => {
@@ -77,6 +80,7 @@ clubRoutes.get("/:clubId/members", async (c) => {
 });
 clubRoutes.delete("/:clubId/members/:membershipId", async (c) => {
 	await clubs.kickMember(connection(c), user(c), id(c), id(c, "membershipId"));
+	await invalidateChat(c.env, id(c));
 	return c.body(null, 204);
 });
 

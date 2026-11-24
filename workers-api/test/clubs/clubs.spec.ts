@@ -107,7 +107,7 @@ function runBody(overrides: Record<string, unknown> = {}) {
 
 beforeAll(async () => {
 	db = await PGlite.create();
-	for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql"]) {
+	for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql", "004_chat.sql"]) {
 		await db.exec(await readFile(new NodeURL(`../../migrations/${name}`, import.meta.url), "utf8"));
 	}
 	let queue = Promise.resolve();

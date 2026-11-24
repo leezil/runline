@@ -20,7 +20,7 @@ describe.skipIf(!process.env.CLUB_TEST_DATABASE_URL)("PostgreSQL multi-connectio
 		await admin.connect();
 		await admin.query(`CREATE SCHEMA ${schema}`);
 		await admin.query(`SET search_path TO ${schema}, public`);
-		for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql"]) {
+		for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql", "004_chat.sql"]) {
 			await admin.query(await readFile(new NodeURL(`../../migrations/${name}`, import.meta.url), "utf8"));
 		}
 		const url = new NodeURL(original);

@@ -5,7 +5,9 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "runline-api",
-	"main": "src/index.ts",
+	"main": "src/worker.ts",
+	"durable_objects": { "bindings": [{ "name": "CLUB_CHAT", "class_name": "ClubChat" }] },
+	"migrations": [{ "tag": "v1-club-chat", "new_sqlite_classes": ["ClubChat"] }],
 	"compatibility_date": "2026-10-23",
 	"compatibility_flags": ["nodejs_compat"],
 	"observability": {

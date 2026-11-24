@@ -6,6 +6,7 @@ type SessionRow = {
 	user_id: string;
 	access_expires_at: Date;
 	refresh_expires_at: Date;
+	club_id?: string;
 };
 
 export async function createSession(client: Client, kakaoUserId: string, hashes: TokenHashes) {
@@ -33,14 +34,17 @@ export async function rotateSession(client: Client, currentRefreshHash: string, 
 			access_expires_at = now() + make_interval(secs => $4),
 			refresh_expires_at = now() + make_interval(secs => $5)
 		WHERE refresh_token_hash = $1 AND refresh_expires_at > now()
-		RETURNING user_id, access_expires_at, refresh_expires_at`,
+		RETURNING user_id, access_expires_at, refresh_expires_at,
+			(SELECT club_id FROM club_memberships WHERE user_id = runline_sessions.user_id AND status = 'active') AS club_id`,
 		[currentRefreshHash, hashes.accessHash, hashes.refreshHash, accessLifetimeSeconds, refreshLifetimeSeconds],
 	);
 	return rows[0];
 }
 
-export async function revokeSession(client: Client, refreshHash: string): Promise<void> {
-	await client.query("DELETE FROM runline_sessions WHERE refresh_token_hash = $1", [refreshHash]);
+export async function revokeSession(client: Client, refreshHash: string): Promise<string | undefined> {
+	const { rows } = await client.query<{ club_id?: string }>(`DELETE FROM runline_sessions WHERE refresh_token_hash = $1
+		RETURNING (SELECT club_id FROM club_memberships WHERE user_id = runline_sessions.user_id AND status = 'active') AS club_id`, [refreshHash]);
+	return rows[0]?.club_id;
 }
 
 export async function findSessionUser(client: Client, accessHash: string): Promise<string | undefined> {

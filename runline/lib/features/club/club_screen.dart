@@ -7,6 +7,7 @@ import '../../shared/media/image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
 import 'club_notices_screen.dart';
+import 'chat/club_chat_screen.dart';
 
 class ClubScreen extends StatefulWidget {
   const ClubScreen({super.key});
@@ -17,6 +18,7 @@ class ClubScreen extends StatefulWidget {
 class _ClubScreenState extends State<ClubScreen> {
   Map<String, dynamic>? _club;
   bool _owner = false;
+  int _unreadChat = 0;
   List<Map<String, dynamic>> _items = [];
   String? _cursor;
   String _query = '';
@@ -49,6 +51,7 @@ class _ClubScreenState extends State<ClubScreen> {
       _items = [];
       _cursor = null;
       _owner = false;
+      _unreadChat = 0;
     }
     if (!RunlineSession.instance.isSignedIn) {
       if (mounted) {
@@ -69,6 +72,13 @@ class _ClubScreenState extends State<ClubScreen> {
         if (!mounted || generation != _generation) return;
         _club = mine['club'] as Map<String, dynamic>?;
         _owner = mine['membership']?['role'] == 'owner';
+        if (_club != null) {
+          final chat = await RunlineApi.instance.json(
+            '/clubs/${_club!['id']}/chat',
+          );
+          if (!mounted || generation != _generation) return;
+          _unreadChat = chat['state']['unread_count'] as int;
+        }
       }
       final params = <String, String>{
         if (more && _cursor != null) 'cursor': _cursor!,
@@ -296,12 +306,24 @@ class _ClubScreenState extends State<ClubScreen> {
                 icon: Icons.directions_run,
                 onPressed: () => _collection('runs', '클럽 러닝'),
               ),
-              IconLabelAction(
-                label: '채팅',
-                icon: Icons.chat_bubble_outline,
-                onPressed: () => ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('채팅은 준비 중이에요.'))),
+              Badge.count(
+                count: _unreadChat,
+                isLabelVisible: _unreadChat > 0,
+                child: IconLabelAction(
+                  label: '채팅',
+                  icon: Icons.chat_bubble_outline,
+                  onPressed: () async {
+                    await Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => ClubChatScreen(
+                          clubId: _club!['id'] as String,
+                          clubName: _club!['name'] as String,
+                        ),
+                      ),
+                    );
+                    if (mounted) await _load();
+                  },
+                ),
               ),
             ],
           ),

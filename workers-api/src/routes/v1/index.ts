@@ -5,8 +5,10 @@ import healthRoutes from "./health";
 import clubRoutes, { meRoutes } from "../../features/clubs/club-routes";
 import imageRoutes from "../../features/media/image-routes";
 import feedRoutes from "../../features/media/feed-routes";
+import chatRoutes from "../../features/chat/chat-routes";
 
 const v1Routes = new Hono<AuthEnv>();
+v1Routes.route("/", chatRoutes);
 v1Routes.route("/", imageRoutes);
 v1Routes.route("/feed", feedRoutes);
 
