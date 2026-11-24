@@ -10,8 +10,21 @@ Future<String> kakaoAccessToken() async {
   }
 
   await KakaoSdk.init(nativeAppKey: nativeKey);
-  final token = await isKakaoTalkInstalled()
-      ? await UserApi.instance.loginWithKakaoTalk()
-      : await UserApi.instance.loginWithKakaoAccount();
-  return token.accessToken;
+  try {
+    final token = await isKakaoTalkInstalled()
+        ? await UserApi.instance.loginWithKakaoTalk()
+        : await UserApi.instance.loginWithKakaoAccount();
+    return token.accessToken;
+  } on KakaoAuthException catch (error) {
+    final description = error.errorDescription ?? '';
+    final code = RegExp(r'\bKOE\d+\b').firstMatch(description)?.group(0);
+    final keyHashMismatch = description.toLowerCase().contains('key_hash');
+    if (kDebugMode) {
+      debugPrint('Runline Kakao auth: ${error.error.name}, code=$code, keyHashMismatch=$keyHashMismatch');
+    }
+    rethrow;
+  } catch (error) {
+    if (kDebugMode) debugPrint('Runline Kakao SDK: ${error.runtimeType}');
+    rethrow;
+  }
 }
