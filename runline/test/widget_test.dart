@@ -6,9 +6,15 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:runline/features/auth/runline_auth.dart';
 import 'package:runline/features/navigation/main_shell.dart';
+import 'package:runline/features/running/history/running_history_repository.dart';
+import 'package:runline/features/running/history/running_record.dart';
+import 'package:runline/features/running/running_timer.dart';
+
+import 'running_history_test.dart' show historyFixture;
+
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:runline/main.dart';
 
@@ -57,16 +63,33 @@ void main() {
     expect(find.text('로그인이 필요합니다'), findsNothing);
   });
 
-  testWidgets('changes activity statistics by selected period', (WidgetTester tester) async {
-    await tester.pumpWidget(const RunlineApp());
+  testWidgets('activity groups completed runs and opens their details', (
+    tester,
+  ) async {
+    final repository = await RunningHistory.open();
+    final record = historyFixture(status: RunningStatus.finished).toJson();
+    record['startedAt'] = DateTime.now().toUtc().toIso8601String();
+    await repository.save(RunningRecord.fromJson(record));
 
+    await tester.pumpWidget(const RunlineApp());
     await tester.tap(find.byIcon(Icons.directions_run_outlined));
     await tester.pumpAndSettle();
-
-    expect(find.textContaining('12.4', findRichText: true), findsOneWidget);
+    expect(find.text('주'), findsOneWidget);
     await tester.tap(find.text('월'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('46.8', findRichText: true), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('자유 러닝'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('activity-list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(find.text('자유 러닝'));
+    await tester.pumpAndSettle();
+    expect(find.text('러닝 기록 상세'), findsOneWidget);
   });
 }
 
