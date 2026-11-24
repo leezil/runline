@@ -7,6 +7,7 @@ import '../club/club_screen.dart';
 import '../feed/feed_screen.dart';
 import '../home/home_screen.dart';
 import '../route/route_screen.dart';
+import '../running/history/running_history_repository.dart';
 import 'login_required_dialog.dart';
 
 class MainShell extends StatefulWidget {
@@ -22,7 +23,7 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 2;
   bool _checkingLogin = false;
   bool _hasSession = false;
-  late final _auth = widget.authentication ?? RunlineAuth();
+  late final _auth = widget.authentication ?? RunlineAuth.shared;
 
   bool _requiresLogin(int index) => index == 3 || index == 4;
 
@@ -45,6 +46,7 @@ class _MainShellState extends State<MainShell> {
         final login = await showLoginRequiredDialog(context);
         if (!mounted || !login) return;
         await _auth.signIn();
+        RunningHistory.notifyRunCompleted();
       }
       if (mounted) {
         setState(() {

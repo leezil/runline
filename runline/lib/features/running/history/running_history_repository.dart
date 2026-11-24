@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:sembast/sembast.dart';
 
 import 'running_record.dart';
+import '../../auth/runline_auth.dart';
+import 'cloud_running_history.dart';
 import 'running_history_database_stub.dart'
     if (dart.library.io) 'running_history_database_io.dart'
     if (dart.library.js_interop) 'running_history_database_web.dart'
@@ -14,14 +16,20 @@ class RunningHistory {
   static ValueListenable<int> get completedRuns => _completedRuns;
   static void notifyRunCompleted() => _completedRuns.value++;
 
-  static Future<RunningHistoryRepository>? _local;
-  static Future<RunningHistoryRepository> _openLocal() => _local ??= platform
-      .openDatabase()
-      .then(RunningHistoryRepository.new)
-      .onError((error, stack) {
-        _local = null;
-        Error.throwWithStackTrace(error!, stack);
-      });
+  static Future<Database>? _database;
+  static final _accounts = <String, CloudRunningHistory>{};
+  static Future<RunningHistoryRepository> _openLocal() async {
+    final owner = RunlineAuth.shared.userId;
+    final db = await (_database ??= platform.openDatabase().onError((
+      error,
+      stack,
+    ) {
+      _database = null;
+      Error.throwWithStackTrace(error!, stack);
+    }));
+    if (owner == null) return RunningHistoryRepository(db);
+    return _accounts.putIfAbsent(owner, () => CloudRunningHistory(db, owner));
+  }
 }
 
 /// Activity can query this layer without depending on the running screen.
@@ -35,9 +43,12 @@ abstract interface class RunningHistoryRepository {
 }
 
 class SembastRunningHistoryRepository implements RunningHistoryRepository {
-  SembastRunningHistoryRepository(this.database);
+  SembastRunningHistoryRepository(
+    this.database, [
+    String store = 'running_sessions_v1',
+  ]) : _records = stringMapStoreFactory.store(store);
   final Database database;
-  final _records = stringMapStoreFactory.store('running_sessions_v1');
+  final StoreRef<String, Map<String, Object?>> _records;
 
   @override
   Future<void> save(RunningRecord record) => database.transaction((txn) async {
