@@ -19,7 +19,7 @@ class RunningHistory {
   static Future<Database>? _database;
   static final _accounts = <String, CloudRunningHistory>{};
   static Future<RunningHistoryRepository> _openLocal() async {
-    final owner = RunlineAuth.shared.userId;
+    final owner = RunlineAuth.instance.userId;
     final db = await (_database ??= platform.openDatabase().onError((
       error,
       stack,

@@ -14,7 +14,7 @@ class CloudRunningHistory extends SembastRunningHistoryRepository {
     this.owner, {
     this.apiOrigin = const String.fromEnvironment('RUNLINE_API_ORIGIN'),
     Future<String> Function(String)? tokenFor,
-  }) : _tokenFor = tokenFor ?? RunlineAuth.shared.tokenFor,
+  }) : _tokenFor = tokenFor ?? RunlineAuth.instance.tokenFor,
        _uploaded = StoreRef<String, bool>('uploaded_$owner'),
        _summaries = stringMapStoreFactory.store('summaries_$owner'),
        super(db, 'runs_$owner');

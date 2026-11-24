@@ -213,6 +213,48 @@ describe("feed posts", () => {
 	});
 });
 
+
+describe("web test login", () => {
+  const origin = "http://localhost:5000";
+  const redirectUri = `${origin}/auth/kakao/callback`;
+  const settings = { ...env, ENABLE_WEB_TEST_LOGIN: "true", KAKAO_REST_API_KEY: "test-key",
+    KAKAO_APP_ID: "42", KAKAO_WEB_REDIRECT_URI: redirectUri, RUNLINE_WEB_ORIGIN: origin };
+  const login = (bindings = settings, body: unknown = { code: "code", redirectUri }, requestOrigin = origin) =>
+    worker.request(`${api}/auth/kakao/web`, { method: "POST", headers: {
+      "Content-Type": "application/json", Origin: requestOrigin,
+    }, body: JSON.stringify(body) }, bindings);
+
+  it("is disabled by default and never calls Kakao or the database", async () => {
+    const fetchKakao = vi.fn(); vi.stubGlobal("fetch", fetchKakao);
+    expect((await login({ ...settings, ENABLE_WEB_TEST_LOGIN: "false" })).status).toBe(404);
+    expect(fetchKakao).not.toHaveBeenCalled(); expect(query).not.toHaveBeenCalled();
+  });
+  it("rejects an unexpected origin or redirect URI", async () => {
+    expect((await login(settings, undefined, "https://other.example")).status).toBe(403);
+    expect((await login(settings, { code: "code", redirectUri: "https://other.example" })).status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+  it("exchanges the code server-side and issues an existing Runline session", async () => {
+    const fetchKakao = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: "kakao-token" }))
+      .mockResolvedValueOnce(Response.json({ app_id: 42, id: 123, expires_in: 300 }))
+      .mockResolvedValueOnce(Response.json({ id: 123 }));
+    vi.stubGlobal("fetch", fetchKakao);
+    query.mockResolvedValueOnce({ rows: [{ user_id: "user", access_expires_at: new Date("2027-01-01"), refresh_expires_at: new Date("2027-04-01") }] });
+    const response = await login();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ tokenType: "Bearer", user: { id: "user" } });
+    expect(fetchKakao.mock.calls[0][0]).toBe("https://kauth.kakao.com/oauth/token");
+    expect(fetchKakao.mock.calls[0][1].body.get("redirect_uri")).toBe(redirectUri);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+  it("does not issue a session for a rejected authorization code", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: "invalid_grant" }, { status: 400 })));
+    expect((await login()).status).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+});
+
 describe("private running history", () => {
   const id = "b".repeat(32);
   const owner = "d9707d42-9083-4bb2-a899-f193aed0d001";
