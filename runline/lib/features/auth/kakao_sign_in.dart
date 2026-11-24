@@ -10,6 +10,8 @@ Future<String> kakaoAccessToken() async {
   }
 
   await KakaoSdk.init(nativeAppKey: nativeKey);
-  final token = await UserApi.instance.loginWithKakaoAccount();
+  final token = await isKakaoTalkInstalled()
+      ? await UserApi.instance.loginWithKakaoTalk()
+      : await UserApi.instance.loginWithKakaoAccount();
   return token.accessToken;
 }
