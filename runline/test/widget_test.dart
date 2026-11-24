@@ -55,6 +55,10 @@ void main() {
     await tester.tap(find.text('카카오 로그인'));
     await tester.pumpAndSettle();
 
+    expect(find.text('로그인'), findsOneWidget);
+    await tester.tap(find.text('카카오로 계속하기'));
+    await tester.pumpAndSettle();
+
     expect(auth.signedIn, isTrue);
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,

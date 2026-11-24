@@ -49,7 +49,7 @@ app.*.map.json
 
 # Local app credentials; the blank template is versioned.
 /config/*.local.json
-!/config/app.local.example.json
+!/config/*.local.example.json
 
 # Generated Kotlin compiler sessions.
 /android/.kotlin/

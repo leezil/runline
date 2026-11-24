@@ -6,6 +6,8 @@ import { requireAuth, type AuthEnv } from "./require-auth";
 import { endSession, refreshSession, startSession } from "./session-service";
 import { refreshTokenPattern } from "./tokens";
 
+import { webTestLogin } from "./web-test-login";
+
 const authRoutes = new Hono<AuthEnv>();
 
 async function readToken(c: Context<AuthEnv>, field: string, pattern: RegExp): Promise<string> {
@@ -25,6 +27,9 @@ authRoutes.use("*", bodyLimit({
 	maxSize: 4096,
 	onError: (c) => c.json({ ok: false, error: { code: "PAYLOAD_TOO_LARGE", message: "Request body is too large" } }, 413),
 }));
+
+// WEB_TEST_LOGIN: default-disabled browser test entry.
+authRoutes.post("/kakao/web", webTestLogin);
 
 authRoutes.post("/kakao", async (c) => {
 	const token = await readToken(c, "accessToken", /^[A-Za-z0-9._~+/=-]{1,2048}$/);

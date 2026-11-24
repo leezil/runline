@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../activity/activity_screen.dart';
 import '../auth/runline_auth.dart';
+import '../auth/login_screen.dart';
+import '../auth/web_test_login.dart';
 import '../club/club_screen.dart';
 import '../feed/feed_screen.dart';
 import '../home/home_screen.dart';
@@ -22,7 +24,29 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 2;
   bool _checkingLogin = false;
   bool _hasSession = false;
-  late final _auth = widget.authentication ?? RunlineAuth();
+  late final _auth = widget.authentication ?? RunlineAuth.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    if (hasWebLoginCallback) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final success = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) =>
+                LoginScreen(authentication: _auth, completeWebLogin: true),
+          ),
+        );
+        if (mounted && success == true) {
+          setState(() {
+            _hasSession = true;
+            _currentIndex = 4;
+          });
+        }
+      });
+    }
+  }
 
   bool _requiresLogin(int index) => index == 3 || index == 4;
 
@@ -44,7 +68,10 @@ class _MainShellState extends State<MainShell> {
         });
         final login = await showLoginRequiredDialog(context);
         if (!mounted || !login) return;
-        await _auth.signIn();
+        final success = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (_) => LoginScreen(authentication: _auth)),
+        );
+        if (success != true) return;
       }
       if (mounted) {
         setState(() {
