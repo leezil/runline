@@ -4,6 +4,7 @@
 
 - `KAKAO_NATIVE_APP_KEY`: Android 앱에 사용할 카카오 Native App Key.
 - `KAKAO_JAVASCRIPT_KEY`: Web 지도에 사용할 카카오 JavaScript 키.
+- `RUNLINE_API_ORIGIN`: 피드·클럽 로그인에 사용할 Runline Workers API의 HTTPS 기본 주소. `/api/v1/auth`는 코드가 붙입니다.
 - `API_BASE_URL`: 경로·시설 요청에 함께 사용할 서버의 HTTPS 기본 주소. `/v1/routes`, `/v1/places`는 각각 코드가 붙입니다.
 - `API_TOKEN`: 경로·시설 요청에 함께 사용할 Bearer 토큰. `Bearer ` 접두사 없이 값만 입력합니다.
 

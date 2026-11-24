@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -27,6 +29,13 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        val nativeAppKey = providers.gradleProperty("dart-defines").orNull.orEmpty()
+            .split(',')
+            .filter { it.isNotBlank() }
+            .map { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
+            .firstOrNull { it.startsWith("KAKAO_NATIVE_APP_KEY=") }
+            ?.substringAfter('=')
+        manifestPlaceholders["kakaoNativeAppKey"] = nativeAppKey ?: "unconfigured"
     }
 
     buildTypes {

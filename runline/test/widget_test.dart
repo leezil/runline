@@ -6,6 +6,8 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:runline/features/auth/runline_auth.dart';
+import 'package:runline/features/navigation/main_shell.dart';
 import 'package:runline/features/running/history/running_history_repository.dart';
 import 'package:runline/features/running/history/running_record.dart';
 import 'package:runline/features/running/running_timer.dart';
@@ -23,6 +25,42 @@ void main() {
 
     expect(find.text('좋은 아침이에요, 러너!'), findsOneWidget);
     expect(find.text('러닝 목표'), findsOneWidget);
+  });
+
+  for (final tab in ['피드', '클럽']) {
+    testWidgets('requires login before opening $tab', (tester) async {
+      await tester.pumpWidget(const RunlineApp());
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+
+      expect(find.text('로그인이 필요합니다'), findsOneWidget);
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        2,
+      );
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        2,
+      );
+    });
+  }
+
+  testWidgets('opens the selected tab after login succeeds', (tester) async {
+    final auth = _TestAuthentication();
+    await tester.pumpWidget(MaterialApp(home: MainShell(authentication: auth)));
+    await tester.tap(find.text('피드'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('카카오 로그인'));
+    await tester.pumpAndSettle();
+
+    expect(auth.signedIn, isTrue);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      4,
+    );
+    expect(find.text('로그인이 필요합니다'), findsNothing);
   });
 
   testWidgets('activity groups completed runs and opens their details', (
@@ -53,4 +91,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('러닝 기록 상세'), findsOneWidget);
   });
+}
+
+class _TestAuthentication implements TabAuthentication {
+  bool signedIn = false;
+
+  @override
+  Future<bool> hasSession() async => signedIn;
+
+  @override
+  Future<void> signIn() async {
+    signedIn = true;
+  }
 }
