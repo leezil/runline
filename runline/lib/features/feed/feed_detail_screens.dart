@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/test_map_placeholder.dart';
+import 'feed_profile_screen.dart';
+export 'feed_profile_screen.dart';
 
 class FeedPostDetailScreen extends StatefulWidget {
   const FeedPostDetailScreen({
@@ -13,6 +15,7 @@ class FeedPostDetailScreen extends StatefulWidget {
     required this.likes,
     required this.comments,
     this.isPhoto = false,
+    this.authorId,
   });
 
   final String name;
@@ -21,6 +24,7 @@ class FeedPostDetailScreen extends StatefulWidget {
   final int likes;
   final int comments;
   final bool isPhoto;
+  final String? authorId;
 
   @override
   State<FeedPostDetailScreen> createState() => _FeedPostDetailScreenState();
@@ -57,7 +61,7 @@ class _FeedPostDetailScreenState extends State<FeedPostDetailScreen> {
           const _BackHeader(),
           const SizedBox(height: AppSpacing.md),
           InkWell(
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FeedProfileScreen(name: widget.name, initial: widget.initial))),
+            onTap: widget.authorId == null ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FeedProfileScreen(userId: widget.authorId))),
             borderRadius: BorderRadius.circular(99),
             child: Row(children: [_FeedAvatar(initial: widget.initial), const SizedBox(width: AppSpacing.sm), Text(widget.name, style: Theme.of(context).textTheme.titleLarge)]),
           ),
@@ -82,7 +86,7 @@ class _FeedPostDetailScreenState extends State<FeedPostDetailScreen> {
             initial: '민',
             text: '굿ㅈㄷ',
             likes: 8,
-            onProfileTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeedProfileScreen(name: '민수', initial: '민'))),
+            onProfileTap: null,
           ),
           const SizedBox(height: AppSpacing.md),
           _CommentRow(
@@ -90,7 +94,7 @@ class _FeedPostDetailScreenState extends State<FeedPostDetailScreen> {
             initial: '서',
             text: '카페 정보좀ㅎ',
             likes: 23,
-            onProfileTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeedProfileScreen(name: '서연', initial: '서'))),
+            onProfileTap: null,
           ),
           ..._newComments.map((comment) => Padding(
             padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -99,75 +103,13 @@ class _FeedPostDetailScreenState extends State<FeedPostDetailScreen> {
               initial: '민',
               text: comment,
               likes: 0,
-              onProfileTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeedProfileScreen(name: '민지 러너', initial: '민'))),
+              onProfileTap: null,
             ),
           )),
               ],
             ),
           ),
           _CommentInput(controller: _commentController, onSubmit: _submitComment),
-        ],
-      ),
-    ),
-  );
-}
-
-class FeedProfileScreen extends StatefulWidget {
-  const FeedProfileScreen({super.key, required this.name, required this.initial});
-  final String name;
-  final String initial;
-
-  @override
-  State<FeedProfileScreen> createState() => _FeedProfileScreenState();
-}
-
-class _FeedProfileScreenState extends State<FeedProfileScreen> {
-  var _selectedTab = 0;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: Column(
-        children: [
-          const Padding(padding: EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 0), child: _BackHeader()),
-          const SizedBox(height: AppSpacing.md),
-          _FeedAvatar(initial: widget.initial, radius: 42),
-          const SizedBox(height: AppSpacing.sm),
-          Text(widget.name, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: AppSpacing.lg),
-          const Divider(),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(onPressed: () => setState(() => _selectedTab = 0), icon: Icon(Icons.grid_view_outlined, color: _selectedTab == 0 ? AppColors.primary : AppColors.text), tooltip: '게시물'),
-              IconButton(onPressed: () => setState(() => _selectedTab = 1), icon: Icon(Icons.map_outlined, color: _selectedTab == 1 ? AppColors.primary : AppColors.text), tooltip: '루트'),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Align(
-            alignment: _selectedTab == 0 ? Alignment.centerLeft : Alignment.centerRight,
-            child: Padding(
-              padding: EdgeInsets.only(left: _selectedTab == 0 ? 82 : 0, right: _selectedTab == 1 ? 82 : 0),
-              child: Container(height: 2, width: 44, color: AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Expanded(
-            child: _selectedTab == 0 ? GridView.count(
-              crossAxisCount: 3,
-              crossAxisSpacing: 2,
-              mainAxisSpacing: 2,
-              children: const [
-                _ProfilePhoto(color: Color(0xFF705E52), icon: Icons.directions_run),
-                TestMapPlaceholder(borderRadius: 0),
-                _ProfilePhoto(color: Color(0xFF566D8C), icon: Icons.directions_run),
-                TestMapPlaceholder(borderRadius: 0),
-                _ProfileStatsTile(),
-                _ProfilePhoto(color: Color(0xFF82A3C2), icon: Icons.landscape_outlined),
-              ],
-            ) : const SizedBox.shrink(),
-          ),
         ],
       ),
     ),
@@ -242,7 +184,7 @@ class _CommentRow extends StatelessWidget {
   const _CommentRow({required this.name, required this.initial, required this.text, required this.likes, required this.onProfileTap});
   final String name, initial, text;
   final int likes;
-  final VoidCallback onProfileTap;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -260,5 +202,3 @@ class _CommentRow extends StatelessWidget {
     ],
   );
 }
-class _ProfilePhoto extends StatelessWidget { const _ProfilePhoto({required this.color, required this.icon}); final Color color; final IconData icon; @override Widget build(BuildContext context) => ColoredBox(color: color, child: Center(child: Icon(icon, size: 46, color: Colors.white.withValues(alpha: .78)))); }
-class _ProfileStatsTile extends StatelessWidget { const _ProfileStatsTile(); @override Widget build(BuildContext context) => ColoredBox(color: const Color(0xFFF5F6FA), child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('42.3 km', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w900)), const Text('2026년 9월')]))); }

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/media/image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
 import '../../shared/widgets/app_card.dart';
+import 'feed_profile_screen.dart';
+import 'feed_post_screen.dart';
+import 'widgets/feed_avatar.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key, this.api});
@@ -107,6 +109,34 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  Future<void> _openProfile([String? userId]) async {
+    var changed = false;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => FeedProfileScreen(
+          userId: userId,
+          api: _api,
+          onFollowChanged: () => changed = true,
+        ),
+      ),
+    );
+    if (mounted && changed) await _load(reset: true);
+  }
+
+  Future<void> _openPost(String postId) async {
+    var changed = false;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => FeedPostScreen(
+          postId: postId,
+          api: _api,
+          onFollowChanged: () => changed = true,
+        ),
+      ),
+    );
+    if (mounted && changed) await _load(reset: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -120,6 +150,13 @@ class _FeedScreenState extends State<FeedScreen> {
           Row(
             children: [
               Expanded(child: Text('피드', style: textTheme.headlineMedium)),
+              IconButton(
+                onPressed: _api.session.isSignedIn
+                    ? () => _openProfile()
+                    : null,
+                icon: const Icon(Icons.account_circle_outlined),
+                tooltip: '내 프로필',
+              ),
               IconButton(
                 onPressed: !_api.session.isSignedIn
                     ? null
@@ -182,20 +219,34 @@ class _FeedScreenState extends State<FeedScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      (post['author']['nickname'] as String?)
-                                  ?.trim()
-                                  .isNotEmpty ==
-                              true
-                          ? post['author']['nickname'] as String
-                          : '러너',
-                      style: textTheme.labelLarge,
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: FeedAvatar(
+                        name: post['author']['nickname'] as String? ?? '러너',
+                        avatarUrl: post['author']['avatarUrl'] as String?,
+                        api: _api,
+                      ),
+                      title: Text(
+                        (post['author']['nickname'] as String?)
+                                    ?.trim()
+                                    .isNotEmpty ==
+                                true
+                            ? post['author']['nickname'] as String
+                            : '러너',
+                        style: textTheme.labelLarge,
+                      ),
+                      onTap: post['author']['id'] is String
+                          ? () => _openProfile(post['author']['id'] as String)
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     if ((post['body'] as String? ?? '').isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(post['body'] as String),
+                        child: InkWell(
+                          onTap: () => _openPost(post['id'] as String),
+                          child: Text(post['body'] as String),
+                        ),
                       ),
                     if ((post['media'] as List).isNotEmpty)
                       SizedBox(
