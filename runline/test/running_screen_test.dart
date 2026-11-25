@@ -10,8 +10,54 @@ import 'package:runline/main.dart';
 import 'package:runline/shared/widgets/runline_map_view.dart';
 
 import 'fake_running_location.dart';
+import 'fake_running_history.dart';
+
+import 'package:runline/features/running/running_location.dart';
 
 void main() {
+  testWidgets(
+    'Android keeps one GPS stream across screen lock and saves background points',
+    (tester) async {
+      final history = FakeRunningHistory();
+      final gps = FakeRunningLocation();
+      var elapsed = Duration.zero;
+      late RunningTimer timer;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RunningScreen(
+            location: gps,
+            history: history,
+            createTimer: () => timer = RunningTimer(now: () => elapsed),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(gps.subscriptions, 1);
+      final now = DateTime.now();
+      gps.controller.add(
+        GpsPoint(37.28, 127.01, 3, now.subtract(const Duration(seconds: 5))),
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      elapsed = const Duration(seconds: 5);
+      gps.controller.add(GpsPoint(37.2801, 127.01, 3, now));
+      await tester.pump(const Duration(seconds: 5));
+      expect(timer.status, RunningStatus.running);
+      expect(history.records.values.single.points.length, 2);
+      expect(history.records.values.single.activeTime, elapsed);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(gps.subscriptions, 1);
+      expect(gps.cancellations, 0);
+      await tester.tap(find.text('종료'));
+      await tester.pumpAndSettle();
+      expect(gps.cancellations, 1);
+      expect(history.records.values.single.isFinished, true);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
   for (final goal in [
     const RunningGoal.distance(7),
     const RunningGoal.duration(Duration(minutes: 5)),

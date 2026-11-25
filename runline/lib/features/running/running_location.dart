@@ -27,6 +27,9 @@ abstract interface class RunningLocation {
   Stream<GpsPoint> positions();
 }
 
+bool get supportsBackgroundRunning =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
 class GeolocatorRunningLocation implements RunningLocation {
   @override
   Future<GpsStatus?> prepare() async {
@@ -53,9 +56,21 @@ class GeolocatorRunningLocation implements RunningLocation {
 
   @override
   Stream<GpsPoint> positions() => Geolocator.getPositionStream(
-    locationSettings: const LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 0,
-    ),
+    locationSettings: supportsBackgroundRunning
+        ? AndroidSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            intervalDuration: const Duration(seconds: 1),
+            foregroundNotificationConfig: const ForegroundNotificationConfig(
+              notificationChannelName: '러닝 기록',
+              notificationTitle: 'Runline · 러닝 기록 중',
+              notificationText: '화면이 꺼져도 이동 경로를 기록해요.',
+              enableWakeLock: true,
+              setOngoing: true,
+            ),
+          )
+        : const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 0,
+          ),
   ).map((p) => GpsPoint(p.latitude, p.longitude, p.accuracy, p.timestamp));
 }

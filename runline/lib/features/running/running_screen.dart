@@ -177,8 +177,13 @@ class _RunningScreenState extends State<RunningScreen>
     _facilities.setActive(state == AppLifecycleState.resumed);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
+      if (!_foreground) return;
       _foreground = false;
-      _run.pause();
+      if (supportsBackgroundRunning && _timer.status == RunningStatus.running) {
+        _recorder?.checkpoint();
+      } else {
+        _run.pause();
+      }
     } else if (state == AppLifecycleState.resumed) {
       _foreground = true;
     }
