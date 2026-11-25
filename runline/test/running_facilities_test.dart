@@ -49,18 +49,35 @@ void main() {
       map().onBoundsChanged!(const FacilityBounds(127, 37.25, 127.02, 37.27));
       await tester.pump(const Duration(seconds: 1));
       expect(requests, 0);
-      await tester.tap(find.byKey(const ValueKey('facility-toilet')));
+      final toggle = find.byTooltip('지도 표시');
+      final toilet = find.byWidgetPredicate(
+        (widget) =>
+            widget is CheckboxMenuButton &&
+            widget.key == const ValueKey('facility-toilet'),
+      );
+      expect(toilet, findsNothing);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await tester.tap(toilet);
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pumpAndSettle();
       expect(requests, 1);
       expect(map().facilities.single.name, '공원 화장실');
+      expect(tester.widget<CheckboxMenuButton>(toilet).value, isTrue);
+      expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isTrue);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(toilet, findsNothing);
       map().onFacilityTap!(map().facilities.single);
       await tester.pumpAndSettle();
       expect(find.text('공원 화장실'), findsOneWidget);
       expect(find.text('상시'), findsOneWidget);
       Navigator.of(tester.element(find.text('공원 화장실'))).pop();
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('facility-toilet')));
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxMenuButton>(toilet).value, isTrue);
+      await tester.tap(toilet);
       await tester.pumpAndSettle();
       expect(map().facilities, isEmpty);
       expect(requests, 1);

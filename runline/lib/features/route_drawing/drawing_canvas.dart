@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
@@ -24,15 +25,23 @@ class DrawingCanvas extends StatelessWidget {
         builder: (context, constraints) {
           final viewport = constraints.biggest;
           controller.updateViewport(viewport);
-          return GestureDetector(
+          return RawGestureDetector(
             key: const Key('drawing-canvas-input'),
             behavior: HitTestBehavior.opaque,
-            onPanDown: (details) =>
-                controller.beginStroke(details.localPosition, viewport),
-            onPanUpdate: (details) =>
-                controller.addPoint(details.localPosition, viewport),
-            onPanEnd: (_) => controller.endStroke(),
-            onPanCancel: controller.endStroke,
+            gestures: {
+              _DrawingGestureRecognizer:
+                  GestureRecognizerFactoryWithHandlers<
+                    _DrawingGestureRecognizer
+                  >(_DrawingGestureRecognizer.new, (recognizer) {
+                    recognizer.dragStartBehavior = DragStartBehavior.down;
+                    recognizer.onDown = (details) =>
+                        controller.beginStroke(details.localPosition, viewport);
+                    recognizer.onUpdate = (details) =>
+                        controller.addPoint(details.localPosition, viewport);
+                    recognizer.onEnd = (_) => controller.endStroke();
+                    recognizer.onCancel = controller.endStroke;
+                  }),
+            },
             child: RepaintBoundary(
               child: CustomPaint(
                 foregroundPainter: _DrawingPainter(controller),
@@ -47,6 +56,15 @@ class DrawingCanvas extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _DrawingGestureRecognizer extends PanGestureRecognizer {
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    // Claim strokes before the enclosing scroll view can accept vertical drags.
+    resolve(GestureDisposition.accepted);
+  }
 }
 
 class _DrawingPainter extends CustomPainter {
