@@ -17,6 +17,8 @@ import 'running_history_test.dart' show historyFixture;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:runline/main.dart';
+import 'package:runline/shared/widgets/app_button.dart';
+import 'package:runline/shared/widgets/app_chip.dart';
 
 void main() {
   testWidgets('shows the home tab by default', (WidgetTester tester) async {

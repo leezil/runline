@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/test_map_placeholder.dart';
+import 'route_detail_screen.dart';
 import '../../shared/widgets/runline_map_view.dart';
 
 class RouteScreen extends StatefulWidget {
@@ -115,19 +117,29 @@ class _RouteScreenState extends State<RouteScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
-          mainAxisExtent: 216,
+          mainAxisExtent: 230,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: const [
             _RouteItem(
               title: '한강 여의도 순환 코스',
-              detail: '5.1 km · 평지',
+              runDate: '2026.09.21',
+              runType: '자유 러닝',
               color: AppColors.primary,
+              date: '2026.09.21',
+              distance: '5.1km',
+              duration: '32:40',
+              pace: "6'24\"",
             ),
             _RouteItem(
               title: '남산 둘레길 러닝',
-              detail: '4.2 km · 오르막 68 m',
+              runDate: '2026.09.16',
+              runType: '그림 러닝',
               color: Color(0xFF2E9B6C),
+              date: '2026.09.16',
+              distance: '4.2km',
+              duration: '30:18',
+              pace: "7'13\"",
             ),
           ],
         ),
@@ -139,16 +151,34 @@ class _RouteScreenState extends State<RouteScreen> {
 class _RouteItem extends StatelessWidget {
   const _RouteItem({
     required this.title,
-    required this.detail,
+    required this.runDate,
+    required this.runType,
     required this.color,
+    required this.date,
+    required this.distance,
+    required this.duration,
+    required this.pace,
   });
 
   final String title;
-  final String detail;
+  final String runDate;
+  final String runType;
   final Color color;
+  final String date;
+  final String distance;
+  final String duration;
+  final String pace;
 
   @override
   Widget build(BuildContext context) => AppCard(
+    onTap: () => RouteDetailScreen.show(
+      context,
+      title: title,
+      date: date,
+      distance: distance,
+      duration: duration,
+      pace: pace,
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -203,12 +233,9 @@ class _RouteItem extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: AppSpacing.xxs),
-        Text(
-          detail,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text('$runDate · $runType', maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(distance, style: Theme.of(context).textTheme.titleMedium),
       ],
     ),
   );
