@@ -9,6 +9,7 @@ import '../club/club_screen.dart';
 import '../feed/feed_screen.dart';
 import '../home/home_screen.dart';
 import '../route/route_screen.dart';
+import '../running/history/running_history_repository.dart';
 import 'login_required_dialog.dart';
 
 class MainShell extends StatefulWidget {
@@ -39,6 +40,7 @@ class _MainShellState extends State<MainShell> {
           ),
         );
         if (mounted && success == true) {
+          RunningHistory.notifyRunCompleted();
           setState(() {
             _hasSession = true;
             _currentIndex = 4;
@@ -72,6 +74,7 @@ class _MainShellState extends State<MainShell> {
           MaterialPageRoute(builder: (_) => LoginScreen(authentication: _auth)),
         );
         if (success != true) return;
+        RunningHistory.notifyRunCompleted();
       }
       if (mounted) {
         setState(() {

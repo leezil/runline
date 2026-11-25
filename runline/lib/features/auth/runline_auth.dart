@@ -15,6 +15,33 @@ class RunlineAuth extends ChangeNotifier implements TabAuthentication {
 
   String? get accessToken => _session?.accessToken;
   bool get isSignedIn => _session != null;
+  String? get userId => _session?.userId;
+  Future<RunlineSession?>? _refreshing;
+  Future<RunlineSession?> _refresh(RunlineSession session) =>
+      _refreshing ??= _api
+          .exchange('refresh', {'refreshToken': session.refreshToken})
+          .then((value) {
+            if (identical(_session, session)) {
+              _session = value;
+              notifyListeners();
+            }
+            return _session;
+          })
+          .whenComplete(() => _refreshing = null);
+  Future<String> tokenFor(String owner) async {
+    var session = _session;
+    if (session == null || session.userId != owner) {
+      throw StateError('Account changed');
+    }
+    if (!session.accessTokenExpiresAt.isAfter(DateTime.now())) {
+      session = await _refresh(session);
+    }
+    if (session == null || session.userId != owner) {
+      throw StateError('Session expired');
+    }
+    return session.accessToken;
+  }
+
   final _api = const RunlineAuthApi();
   RunlineSession? _session;
   Future<bool>? _checkingSession;
@@ -32,11 +59,7 @@ class RunlineAuth extends ChangeNotifier implements TabAuthentication {
       return true;
     }
 
-    final refreshed = await _api.exchange('refresh', {
-      'refreshToken': session.refreshToken,
-    });
-    _session = refreshed;
-    notifyListeners();
+    await _refresh(session);
     return _session != null;
   }
 

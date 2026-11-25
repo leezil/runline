@@ -7,6 +7,7 @@ import { myPosts } from "../../features/feed/timeline/my-posts";
 import timelineRoutes from "../../features/feed/timeline/timeline-routes";
 import followRoutes from "../../features/follow/follow-routes";
 import profileRoutes from "../../features/profile/profile-routes";
+import runs from "../../features/runs";
 import healthRoutes from "./health";
 
 const v1Routes = new Hono<AuthEnv>();
@@ -21,6 +22,7 @@ v1Routes.use("/users/*", requireAuth);
 v1Routes.route("/feed", postRoutes);
 v1Routes.route("/feed", mediaRoutes);
 v1Routes.route("/feed", timelineRoutes);
+v1Routes.route("/me/runs", runs);
 v1Routes.get("/me/posts", myPosts);
 v1Routes.route("/", profileRoutes);
 v1Routes.route("/", followRoutes);

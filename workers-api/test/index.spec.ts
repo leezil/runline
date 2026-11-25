@@ -254,3 +254,30 @@ describe("web test login", () => {
     expect(query).not.toHaveBeenCalled();
   });
 });
+
+describe("private running history", () => {
+  const id = "b".repeat(32);
+  const owner = "d9707d42-9083-4bb2-a899-f193aed0d001";
+  const headers = {Authorization: `Bearer rla_${"a".repeat(64)}`, "Content-Type":"application/json"};
+  const record = {id, schema:1,status:"finished",startedAt:"2026-01-01T00:00:00Z",
+    updatedAt:"2026-01-01T00:01:00Z",activeMicroseconds:60000000,distanceMeters:100,
+    points:[],segmentStarts:[]};
+  it("requires login for both summaries and GPS details", async () => {
+    for (const path of ["", "/" + id]) {
+      expect((await worker.request(api + "/me/runs" + path, {}, env)).status).toBe(401);
+    }
+  });
+  it("saves summary and details together using the session owner", async () => {
+    query.mockResolvedValueOnce({rows:[{user_id:owner}]}).mockResolvedValueOnce({})
+      .mockResolvedValueOnce({rows:[{id:owner}]}).mockResolvedValueOnce({}).mockResolvedValueOnce({});
+    const saved = await worker.request(api+"/me/runs/"+id,{method:"PUT",headers,body:JSON.stringify({...record,userId:"other"})},env);
+    expect(saved.status).toBe(204);
+    expect(query.mock.calls[2][1][0]).toBe(owner);
+    expect(query.mock.calls.at(-1)?.[0]).toBe("COMMIT");
+  });
+  it("scopes the detail lookup to the session owner", async () => {
+    query.mockResolvedValueOnce({rows:[{user_id:owner}]}).mockResolvedValueOnce({rows:[]});
+    expect((await worker.request(api+"/me/runs/"+id,{headers},env)).status).toBe(404);
+    expect(query.mock.calls[1][1]).toEqual([owner,id]);
+  });
+});
