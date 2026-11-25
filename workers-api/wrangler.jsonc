@@ -7,6 +7,7 @@
 	"name": "runline-api",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-23",
+	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true
 	},
@@ -16,7 +17,14 @@
 			"binding": "HYPERDRIVE",
 			"id": "c83c7b825bcd4017ab1e872a76ec2b03"
 		}
-	]
+	],
+	"r2_buckets": [
+		{
+			"binding": "FEED_MEDIA",
+			"bucket_name": "runline-feed-media"
+		}
+	],
+	"triggers": { "crons": ["15 * * * *"] }
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

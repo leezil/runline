@@ -46,3 +46,10 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local app credentials; the blank template is versioned.
+/config/*.local.json
+!/config/*.local.example.json
+
+# Generated Kotlin compiler sessions.
+/android/.kotlin/

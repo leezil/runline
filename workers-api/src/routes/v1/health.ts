@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Client } from "pg";
+import { withDatabase } from "../../database/client";
 import type { WorkerBindings } from "../../types";
 
 const healthRoutes = new Hono<{ Bindings: WorkerBindings }>();
@@ -17,11 +17,9 @@ healthRoutes.get("/db", async (c) => {
 		);
 	}
 
-	const client = new Client({ connectionString });
 	try {
-		await client.connect();
-		const result = await client.query<{ postgis_enabled: boolean }>(
-			"SELECT PostGIS_Full_Version() IS NOT NULL AS postgis_enabled",
+		const result = await withDatabase(connectionString, (client) =>
+			client.query<{ postgis_enabled: boolean }>("SELECT PostGIS_Full_Version() IS NOT NULL AS postgis_enabled"),
 		);
 
 		return c.json({
@@ -39,8 +37,6 @@ healthRoutes.get("/db", async (c) => {
 			{ ok: false, service: "runline-api", database: "unavailable" },
 			503,
 		);
-	} finally {
-		await client.end().catch(() => undefined);
 	}
 });
 

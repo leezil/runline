@@ -9,6 +9,12 @@ import '../running/running_progress_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_button.dart';
+import '../route_drawing/route_drawing_screen.dart';
+import '../running/running_screen.dart';
+import '../running/running_goal.dart';
+import '../running/history/running_record_detail_screen.dart';
+import '../running/history/running_history_repository.dart';
+import 'running_goal_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,36 +24,54 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _goalDistances = [3, 5, 10, 20];
-  static const _goalTimes = [20, 30, 45, 60];
+  static const _weeklyGoalKm = 20;
+  late Future<double> _weeklyDistance;
 
-  bool _isSettingGoal = false;
-  int _goalDistance = 20;
-  int _goalTime = 30;
-
-  Future<void> _openGoalPicker() async {
-    final selection = await showDialog<_GoalSelection>(
-      context: context,
-      builder: (_) => _GoalPickerDialog(
-        initialDistance: _goalDistance,
-        initialTime: _goalTime,
-        distances: _goalDistances,
-        times: _goalTimes,
-      ),
-    );
-    if (selection != null && mounted) {
-      setState(() {
-        _goalDistance = selection.distance;
-        _goalTime = selection.time;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadWeeklyDistance();
+    RunningHistory.completedRuns.addListener(_refreshWeeklyDistance);
   }
 
-  void _finishGoalSetting() {
-    setState(() => _isSettingGoal = false);
-    Navigator.of(context).push(
+  @override
+  void dispose() {
+    RunningHistory.completedRuns.removeListener(_refreshWeeklyDistance);
+    super.dispose();
+  }
+
+  void _refreshWeeklyDistance() => setState(_loadWeeklyDistance);
+
+  void _loadWeeklyDistance() {
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day - now.weekday + 1);
+    final nextMonday = DateTime(monday.year, monday.month, monday.day + 7);
+    _weeklyDistance = RunningHistory.open()
+        .then((repository) => repository.list(finished: true))
+        .then((records) {
+          var meters = 0.0;
+          for (final record in records) {
+            final start = record.startedAt.toLocal();
+            if (!start.isBefore(monday) && start.isBefore(nextMonday)) {
+              meters += record.distanceMeters;
+            }
+          }
+          return meters / 1000;
+        });
+  }
+
+  Future<void> _setGoal(BuildContext context) async {
+    final goal = await showDialog<RunningGoal>(
+      context: context,
+      builder: (_) => const RunningGoalDialog(),
+    );
+    if (!context.mounted || goal == null) return;
+    Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => RunningProgressScreen(goalDistance: _goalDistance, goalTime: _goalTime),
+        settings: const RouteSettings(
+          name: RunningScreen.homeStartRunningRoute,
+        ),
+        builder: (_) => RunningScreen(goal: goal),
       ),
     );
   }
@@ -55,429 +79,181 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Stack(
-      children: [
-        ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            const CircleAvatar(
-              radius: 20,
-              backgroundColor: Color(0xFFE6E9FF),
-              child: Icon(Icons.person_outline, color: AppColors.primary),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text('민지 러너', style: textTheme.titleMedium),
-            const Spacer(),
-            IconButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ),
-              icon: const Icon(Icons.settings_outlined),
-              tooltip: '설정',
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text('좋은 아침이에요, 러너!', style: textTheme.headlineMedium),
-        const SizedBox(height: AppSpacing.xs),
-        Text('오늘의 목표까지 한 걸음 더 달려볼까요?', style: textTheme.bodyMedium),
-        const SizedBox(height: AppSpacing.lg),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: AppSpacing.md),
+          Row(
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.local_fire_department_outlined, color: Color(0xFFFF7A45)),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text('러닝 목표', style: textTheme.titleMedium),
-                  const Spacer(),
-                  Text('목표 20 km', style: textTheme.bodySmall),
-                ],
+              Expanded(
+                child: Text('좋은 아침이에요, 러너!', style: textTheme.headlineMedium),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Text('12.4 km', style: textTheme.headlineLarge),
-              const SizedBox(height: AppSpacing.xs),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(99),
-                child: const LinearProgressIndicator(
-                  value: 0.62,
-                  minHeight: 8,
-                  color: AppColors.primary,
-                  backgroundColor: Color(0xFFE6E9FF),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text('목표의 62%를 달성했어요.', style: textTheme.bodySmall),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppCard(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const RunningProgressScreen()),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text('러닝 시작하기', style: textTheme.headlineMedium),
-              const SizedBox(height: AppSpacing.xxs),
-              Text('지금 바로 새로운 러닝을 시작하세요.', style: textTheme.bodySmall),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const RouteDrawScreen()),
-                    ),
-                    icon: Icons.route_outlined,
-                    label: '루트 그리기',
-                    variant: AppButtonVariant.outlined,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppButton(
-                    onPressed: () => setState(() => _isSettingGoal = true),
-                    icon: Icons.flag_outlined,
-                    label: '목표 설정',
-                    variant: AppButtonVariant.outlined,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        if (_isSettingGoal)
-          Positioned.fill(
-            child: _GoalSettingOverlay(
-              distance: _goalDistance,
-              time: _goalTime,
-              onOpenGoalPicker: _openGoalPicker,
-              onCancel: () => setState(() => _isSettingGoal = false),
-              onStart: _finishGoalSetting,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _GoalSettingOverlay extends StatelessWidget {
-  const _GoalSettingOverlay({
-    required this.distance,
-    required this.time,
-    required this.onOpenGoalPicker,
-    required this.onCancel,
-    required this.onStart,
-  });
-
-  final int distance;
-  final int time;
-  final VoidCallback onOpenGoalPicker;
-  final VoidCallback onCancel;
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Positioned.fill(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-          child: Container(color: Colors.white.withValues(alpha: 0.5)),
-        ),
-      ),
-      Center(
-        child: Semantics(
-          label: '목표 거리 $distance km, 목표 시간 $time분',
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('목표 거리', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black)),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '$distance km',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: Colors.black,
-                  fontSize: 104,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                '목표 시간 : $time분',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black),
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: Color(0xFFE6E9FF),
+                child: Icon(Icons.person_outline, color: AppColors.primary),
               ),
             ],
           ),
-        ),
-      ),
-      Positioned(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-        bottom: AppSpacing.lg,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final startButtonWidth = (constraints.maxWidth - AppSpacing.sm) / 2;
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: AppSpacing.xs),
+          Text('오늘의 목표까지 한 걸음 더 달려볼까요?', style: textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.lg),
+          FutureBuilder<double>(
+            future: _weeklyDistance,
+            builder: (context, snapshot) {
+              final distance = snapshot.data;
+              final progressLabel = switch (distance) {
+                final double km =>
+                  '목표의 ${(km / _weeklyGoalKm * 100).round()}%를 달성했어요.',
+                null when snapshot.hasError => '러닝 기록을 불러오지 못했습니다.',
+                null => '러닝 기록을 불러오는 중입니다.',
+              };
+              return AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 76,
-                      child: AppButton(
-                        label: '거리',
-                        onPressed: onOpenGoalPicker,
-                        variant: AppButtonVariant.outlined,
-                        expand: false,
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.local_fire_department_outlined,
+                          color: Color(0xFFFF7A45),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text('러닝 목표', style: textTheme.titleMedium),
+                        const Spacer(),
+                        Text(
+                          '목표 $_weeklyGoalKm km',
+                          style: textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      distance == null
+                          ? '— km'
+                          : '${distance.toStringAsFixed(2)} km',
+                      style: textTheme.headlineLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        value: distance == null
+                            ? 0
+                            : (distance / _weeklyGoalKm).clamp(0.0, 1.0),
+                        minHeight: 8,
+                        color: AppColors.primary,
+                        backgroundColor: Color(0xFFE6E9FF),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    SizedBox(
-                      width: 76,
-                      child: AppButton(
-                        label: '취소',
-                        onPressed: onCancel,
-                        variant: AppButtonVariant.text,
-                        expand: false,
-                      ),
-                    ),
+                    Text(progressLabel, style: textTheme.bodySmall),
                   ],
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                SizedBox(
-                  width: startButtonWidth,
-                  child: AppButton(
-                    label: 'START',
-                    onPressed: onStart,
-                    size: AppButtonSize.large,
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          Center(
+            child: ElevatedButton(
+              key: const Key('home-start-button'),
+              style: _circleButtonStyle(220, elevation: 4),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const RunningScreen()),
+              ),
+              child: const Text(
+                'START',
+                style: TextStyle(fontSize: 44, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _HomeCircleAction(
+                    icon: Icons.edit_outlined,
+                    label: '루트 그리기',
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        settings: const RouteSettings(
+                          name: RouteDrawingScreen.routeName,
+                        ),
+                        builder: (_) => const RouteDrawingScreen(),
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    ],
-  );
-}
-
-class _GoalSelection {
-  const _GoalSelection({required this.distance, required this.time});
-
-  final int distance;
-  final int time;
-}
-
-class _GoalPickerDialog extends StatefulWidget {
-  const _GoalPickerDialog({
-    required this.initialDistance,
-    required this.initialTime,
-    required this.distances,
-    required this.times,
-  });
-
-  final int initialDistance;
-  final int initialTime;
-  final List<int> distances;
-  final List<int> times;
-
-  @override
-  State<_GoalPickerDialog> createState() => _GoalPickerDialogState();
-}
-
-class _GoalPickerDialogState extends State<_GoalPickerDialog> {
-  late int _distance;
-  late int _time;
-
-  @override
-  void initState() {
-    super.initState();
-    _distance = widget.initialDistance;
-    _time = widget.initialTime;
-  }
-
-  Future<void> _showCustomInput({required bool isDistance}) async {
-    final value = await showDialog<int>(
-      context: context,
-      builder: (_) => _CustomGoalInputDialog(
-        title: isDistance ? '목표 거리 직접 입력' : '목표 시간 직접 입력',
-        label: isDistance ? '거리 (km)' : '시간 (분)',
-        initialValue: isDistance ? _distance : _time,
+                  _HomeCircleAction(
+                    icon: Icons.flag_outlined,
+                    label: '목표 설정',
+                    onPressed: () => _setGoal(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextButton.icon(
+            key: const Key('home-running-history'),
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => const RunningHistoryListScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.history),
+            label: const Text('러닝 기록'),
+          ),
+        ],
       ),
     );
-    if (value != null && mounted) {
-      setState(() {
-        if (isDistance) {
-          _distance = value;
-        } else {
-          _time = value;
-        }
-      });
-    }
   }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('목표 설정'),
-    content: SizedBox(
-      width: 300,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('목표 거리', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              ...widget.distances.map(
-                  (value) => ChoiceChip(
-                    label: Text('$value km'),
-                    selected: _distance == value,
-                    onSelected: (_) => setState(() => _distance = value),
-                  ),
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('직접 입력'),
-                onPressed: () => _showCustomInput(isDistance: true),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('목표 시간', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              ...widget.times.map(
-                  (value) => ChoiceChip(
-                    label: Text('$value분'),
-                    selected: _time == value,
-                    onSelected: (_) => setState(() => _time = value),
-                  ),
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('직접 입력'),
-                onPressed: () => _showCustomInput(isDistance: false),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-    actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-    actions: [
-      Row(
-        children: [
-          Expanded(
-            child: AppButton(
-              label: '취소',
-              onPressed: () => Navigator.of(context).pop(),
-              variant: AppButtonVariant.outlined,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: AppButton(
-              label: '적용',
-              onPressed: () => Navigator.of(context).pop(_GoalSelection(distance: _distance, time: _time)),
-            ),
-          ),
-        ],
-      ),
-    ],
-  );
 }
 
-class _CustomGoalInputDialog extends StatefulWidget {
-  const _CustomGoalInputDialog({
-    required this.title,
+ButtonStyle _circleButtonStyle(double diameter, {required double elevation}) =>
+    ElevatedButton.styleFrom(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      shape: const CircleBorder(),
+      minimumSize: Size.square(diameter),
+      fixedSize: Size.square(diameter),
+      padding: EdgeInsets.zero,
+      elevation: elevation,
+    );
+
+class _HomeCircleAction extends StatelessWidget {
+  const _HomeCircleAction({
+    required this.icon,
     required this.label,
-    required this.initialValue,
+    required this.onPressed,
   });
 
-  final String title;
+  final IconData icon;
   final String label;
-  final int initialValue;
+  final VoidCallback onPressed;
 
   @override
-  State<_CustomGoalInputDialog> createState() => _CustomGoalInputDialogState();
-}
-
-class _CustomGoalInputDialogState extends State<_CustomGoalInputDialog> {
-  late final TextEditingController _controller = TextEditingController(text: '${widget.initialValue}');
-  String? _errorText;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final value = int.tryParse(_controller.text.trim());
-    if (value == null || value <= 0) {
-      setState(() => _errorText = '0보다 큰 숫자를 입력하세요.');
-      return;
-    }
-    Navigator.of(context).pop(value);
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.title),
-    content: TextField(
-      controller: _controller,
-      autofocus: true,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        hintText: '숫자를 입력하세요',
-        errorText: _errorText,
-        border: const OutlineInputBorder(),
-      ),
-      onSubmitted: (_) => _submit(),
-    ),
-    actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-    actions: [
-      Row(
+  Widget build(BuildContext context) => ElevatedButton(
+    onPressed: onPressed,
+    style: _circleButtonStyle(72, elevation: 2),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: AppButton(
-              label: '취소',
-              onPressed: () => Navigator.of(context).pop(),
-              variant: AppButtonVariant.outlined,
-            ),
+          Icon(icon, size: 22),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: AppButton(label: '적용', onPressed: _submit)),
         ],
       ),
-    ],
+    ),
   );
 }

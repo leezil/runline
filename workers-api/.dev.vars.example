@@ -1,1 +1,11 @@
 ADMIN_WEB_ORIGIN=http://localhost:3000
+KAKAO_APP_ID=
+RUNLINE_WEB_ORIGIN=
+FEED_MEDIA_SIGNING_SECRET=
+
+# WEB_TEST_LOGIN: default OFF. Enable only during browser testing.
+ENABLE_WEB_TEST_LOGIN=false
+KAKAO_REST_API_KEY=
+KAKAO_WEB_REDIRECT_URI=http://localhost:5000/auth/kakao/callback
+# Server-only secret; never place this in Flutter config.
+KAKAO_CLIENT_SECRET=
