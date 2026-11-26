@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:runline/features/auth/runline_auth.dart';
 import 'package:runline/features/navigation/main_shell.dart';
 import 'package:runline/features/running/history/running_history_repository.dart';
@@ -21,9 +22,11 @@ import 'package:runline/shared/widgets/app_button.dart';
 import 'package:runline/shared/widgets/app_chip.dart';
 
 void main() {
+  FlutterSecureStorage.setMockInitialValues({});
   testWidgets('shows the home tab by default', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const RunlineApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('좋은 아침이에요, 러너!'), findsOneWidget);
     expect(find.text('러닝 목표'), findsOneWidget);
@@ -32,6 +35,7 @@ void main() {
   for (final tab in ['피드', '클럽']) {
     testWidgets('requires login before opening $tab', (tester) async {
       await tester.pumpWidget(const RunlineApp());
+      await tester.pumpAndSettle();
       await tester.tap(find.text(tab));
       await tester.pumpAndSettle();
 
@@ -78,6 +82,7 @@ void main() {
     await repository.save(RunningRecord.fromJson(record));
 
     await tester.pumpWidget(const RunlineApp());
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.directions_run_outlined));
     await tester.pumpAndSettle();
     expect(find.text('주'), findsOneWidget);

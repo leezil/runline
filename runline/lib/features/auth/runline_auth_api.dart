@@ -28,7 +28,9 @@ class RunlineAuthApi {
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 10));
-    if (kDebugMode) debugPrint('Runline auth $path HTTP ${response.statusCode}');
+    if (kDebugMode) {
+      debugPrint('Runline auth $path HTTP ${response.statusCode}');
+    }
     if (response.statusCode == 401) return null;
     if (response.statusCode != 200) {
       throw StateError('Runline login unavailable');
@@ -36,6 +38,19 @@ class RunlineAuthApi {
     return RunlineSession.fromJson(
       jsonDecode(response.body) as Map<String, dynamic>,
     );
+  }
+
+  Future<void> logout(String refreshToken) async {
+    final response = await http
+        .post(
+          _endpoint('logout'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refreshToken': refreshToken}),
+        )
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode != 204 && response.statusCode != 401) {
+      throw StateError('Runline logout unavailable');
+    }
   }
 
   Future<bool> isValid(String token) async {

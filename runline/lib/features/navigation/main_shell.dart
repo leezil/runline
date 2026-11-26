@@ -24,12 +24,17 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 2;
   bool _checkingLogin = false;
+  Future<void>? _restoring;
   bool _hasSession = false;
   late final _auth = widget.authentication ?? RunlineAuth.instance;
 
   @override
   void initState() {
     super.initState();
+    if (_auth case final RunlineAuth auth) {
+      auth.addListener(_sessionChanged);
+    }
+    if (!hasWebLoginCallback) _restoring = _restoreSession();
     if (hasWebLoginCallback) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
@@ -50,10 +55,41 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
+  Future<void> _restoreSession() async {
+    try {
+      final active = await _auth.hasSession();
+      if (mounted) {
+        setState(() => _hasSession = active);
+        if (active) RunningHistory.notifyRunCompleted();
+      }
+    } catch (_) {
+      // Network failures retain credentials; protected tabs retry validation.
+    }
+  }
+
+  void _sessionChanged() {
+    if (!mounted) return;
+    final active = (_auth as RunlineAuth).isSignedIn;
+    setState(() {
+      _hasSession = active;
+      if (!active && _requiresLogin(_currentIndex)) _currentIndex = 2;
+    });
+    RunningHistory.notifyRunCompleted();
+  }
+
+  @override
+  void dispose() {
+    if (_auth case final RunlineAuth auth) {
+      auth.removeListener(_sessionChanged);
+    }
+    super.dispose();
+  }
+
   bool _requiresLogin(int index) => index == 3 || index == 4;
 
   Future<void> _selectTab(int index) async {
-    if (_checkingLogin) return;
+    await _restoring;
+    if (!mounted || _checkingLogin) return;
     if (!_requiresLogin(index)) {
       setState(() => _currentIndex = index);
       return;

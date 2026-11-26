@@ -15,6 +15,13 @@ class RunlineSession {
     ),
   );
 
+  Map<String, dynamic> toJson() => {
+    'user': {'id': userId},
+    'accessToken': accessToken,
+    'refreshToken': refreshToken,
+    'accessTokenExpiresAt': accessTokenExpiresAt.toUtc().toIso8601String(),
+  };
+
   final String? userId;
   final String accessToken;
   final String refreshToken;
