@@ -31,3 +31,9 @@ flutter run -d <android-device-id> --dart-define-from-file=config/app.local.json
 공공데이터 수집용 인증키와 Juso 주소·좌표 검색 키는 앱 설정에 넣지 않습니다. 이 키는 runline-api 서버의 `.env`에서 관리하며 앱은 서버에 저장된 시설 결과를 조회합니다.
 
 시설 표시 버튼은 기본 꺼짐입니다. 켠 상태에서 지도 이동이 600ms 동안 멈추면 조회하며, 최근 조회 영역에 15% 여유를 두고 2분간 메모리 캐시를 재사용합니다. 요청은 한 번에 하나, 최소 5초 간격이며 캐시는 최대 12영역입니다. 조회 범위가 너무 넓거나 결과 200건이 잘렸다면 지도를 확대하세요. 오류 시 자동 반복 호출을 멈추며 429 응답은 Retry-After를 따릅니다. 빈 결과는 실제 시설 부재를 보장하지 않습니다.
+
+## 클럽·채팅 연결
+
+클럽·공지·채팅·이미지 API도 `RUNLINE_API_ORIGIN`과 기존 `RunlineAuth` 세션을 사용합니다. 별도의 토큰 전달이나 `RUNLINE_API_BASE_URL` 설정은 필요하지 않습니다. 채팅은 같은 API 주소를 WebSocket 주소로 변환하고 첫 메시지로 인증합니다.
+
+서버의 HTTP 허용 Origin(`RUNLINE_WEB_ORIGIN`)과 WebSocket 허용 Origin(`CHAT_ALLOWED_ORIGINS`)에 실제 웹 실행 주소를 설정합니다. 피드의 기존 본문·사진 첨부·서명 URL 흐름은 유지합니다.

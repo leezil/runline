@@ -100,7 +100,13 @@ class RunlineApi {
   }
 
   Future<Uint8List> imageBytes(String path, {bool thumbnail = false}) async {
-    final request = http.Request('GET', endpoint(path));
+    var uri = endpoint(path);
+    if (thumbnail && uri.path.startsWith('/api/v1/media/images/')) {
+      uri = uri.replace(
+        queryParameters: {...uri.queryParameters, 'variant': 'thumbnail'},
+      );
+    }
+    final request = http.Request('GET', uri);
     request.followRedirects = false;
     request.headers.addAll(await _headers());
     final response = await http.Response.fromStream(

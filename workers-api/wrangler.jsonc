@@ -5,13 +5,16 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "runline-api",
-	"main": "src/index.ts",
+	"main": "src/worker.ts",
+	"durable_objects": { "bindings": [{ "name": "CLUB_CHAT", "class_name": "ClubChat" }] },
+	"migrations": [{ "tag": "v1-club-chat", "new_sqlite_classes": ["ClubChat"] }],
 	"compatibility_date": "2026-10-23",
 	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	"images": { "binding": "IMAGES" },
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
@@ -19,12 +22,13 @@
 		}
 	],
 	"r2_buckets": [
+		{ "binding": "MEDIA_BUCKET", "bucket_name": "runline-media" },
 		{
 			"binding": "FEED_MEDIA",
 			"bucket_name": "runline-feed-media"
 		}
 	],
-	"triggers": { "crons": ["15 * * * *"] }
+	"triggers": { "crons": ["15 * * * *", "17 3 * * *"] }
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

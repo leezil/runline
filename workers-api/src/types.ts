@@ -1,5 +1,6 @@
 export type WorkerBindings = Cloudflare.Env & {
 	ADMIN_WEB_ORIGIN?: string;
+	CHAT_ALLOWED_ORIGINS?: string;
 	ENABLE_WEB_TEST_LOGIN?: string;
 	KAKAO_REST_API_KEY?: string;
 	KAKAO_WEB_REDIRECT_URI?: string;

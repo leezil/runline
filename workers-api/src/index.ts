@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { cleanupImages } from "./features/media/image-service";
+import { ClubError } from "./features/clubs/errors";
 import { AuthError } from "./features/auth/errors";
 import { cleanUpMedia } from "./features/feed/media/media-cleanup";
 import { HttpError } from "./http/http-error";
@@ -28,7 +30,7 @@ app.notFound((c) =>
 );
 
 app.onError((error, c) => {
-	if (error instanceof AuthError || error instanceof HttpError) {
+	if (error instanceof AuthError || error instanceof HttpError || error instanceof ClubError) {
 		return c.json({ ok: false, error: { code: error.code, message: error.message } }, error.status);
 	}
 
@@ -50,7 +52,8 @@ app.onError((error, c) => {
 
 export default {
 	fetch: app.fetch,
-	async scheduled(_controller, env) {
-		await cleanUpMedia(env);
+	async scheduled(controller, env) {
+		if (controller.cron === "17 3 * * *") await cleanupImages(env);
+		else await cleanUpMedia(env);
 	},
 } satisfies ExportedHandler<WorkerBindings>;

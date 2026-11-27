@@ -29,10 +29,10 @@ export async function refreshSession(connectionString: string, refreshToken: str
 	if (!session) {
 		throw new AuthError(401, "INVALID_REFRESH_TOKEN", "Runline refresh token is invalid or expired");
 	}
-	return sessionResponse(session, tokens);
+	return { ...sessionResponse(session, tokens), clubId: session.club_id };
 }
 
-export async function endSession(connectionString: string, refreshToken: string): Promise<void> {
+export async function endSession(connectionString: string, refreshToken: string): Promise<string | undefined> {
 	const refreshHash = await hashToken(refreshToken);
-	await withDatabase(connectionString, (client) => revokeSession(client, refreshHash));
+	return withDatabase(connectionString, (client) => revokeSession(client, refreshHash));
 }

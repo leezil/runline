@@ -344,4 +344,3 @@ class _SketchPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SketchPainter old) => true;
 }
-

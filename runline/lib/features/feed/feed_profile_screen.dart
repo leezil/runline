@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
+import '../../shared/media/club_image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
 import 'feed_post_screen.dart';
@@ -218,6 +219,24 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_ownProfile || widget.userId == null ? '내 프로필' : '프로필'),
+        actions: [
+          if (_ownProfile)
+            IconButton(
+              tooltip: '프로필 사진 변경',
+              icon: const Icon(Icons.add_a_photo_outlined),
+              onPressed: () async {
+                final saved = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => ClubImageComposeScreen(
+                      kind: ClubImageComposeKind.avatar,
+                      api: _api,
+                    ),
+                  ),
+                );
+                if (saved == true && mounted) await _load();
+              },
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
