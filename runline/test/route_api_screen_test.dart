@@ -162,7 +162,7 @@ void main() {
   });
 
   testWidgets(
-    'requires explicit target and location, preserves range and blocks duplicates',
+    'uses current location by default, preserves range and blocks duplicates',
     (tester) async {
       final service = FakeRoutes();
       final location = FakeRunningLocation();
@@ -193,38 +193,41 @@ void main() {
         await tester.enterText(field, value);
       }
 
-      await submit();
-      expect(service.calls, 0);
-      expect(find.textContaining('직접 입력해주세요.'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('target-distance')))
+            .controller!
+            .text,
+        '6.0',
+      );
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '현재 위치'))
+            .selected,
+        isTrue,
+      );
       await enter('target-distance', '5.125');
-      final wide = find.widgetWithText(ChoiceChip, '넓게');
-      await tester.ensureVisible(wide);
-      await tester.tap(wide);
+      final nearby = find.widgetWithText(ChoiceChip, '넓게');
+      await tester.ensureVisible(nearby);
+      await tester.tap(nearby);
       await tester.pumpAndSettle();
-      expect(find.text('세부 탐색 설정'), findsNothing);
+      expect(find.text('고급 설정'), findsNothing);
       expect(find.textContaining('1.5 km 이내'), findsOneWidget);
       expect(find.textContaining('3.59~6.66 km'), findsOneWidget);
+      await enter('target-distance', '9');
       await submit();
       expect(service.calls, 0);
-      expect(find.textContaining('현재 위치를 선택하거나'), findsOneWidget);
-      final currentLocation = find.text('현재 위치에서 코스 찾기');
-      await tester.ensureVisible(currentLocation);
-      await tester.tap(currentLocation);
-      await tester.pumpAndSettle();
+      expect(location.subscriptions, 0);
+      await enter('target-distance', '5.125');
+      await submit();
       expect(location.subscriptions, 1);
       await tester.runAsync(() async {
         location.controller.add(GpsPoint(37.5, 127.1, 5, DateTime.now()));
         await Future<void>.delayed(Duration.zero);
       });
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(location.cancellations, 1);
       await tester.pump();
-      expect(find.text('현재 위치를 코스 탐색 기준으로 설정했습니다.'), findsOneWidget);
-      await enter('target-distance', '9');
-      await submit();
-      expect(service.calls, 0);
-      await enter('target-distance', '5.125');
-      await submit();
       expect(service.calls, 1);
       expect(service.request!.toJson()['location'], [127.1, 37.5]);
       expect(service.request!.input.minDistanceKm, 4);
@@ -233,7 +236,7 @@ void main() {
       expect(service.request!.toJson()['distance_m'], 5125);
       expect(service.request!.toJson()['radius_m'], 2500);
       expect(service.request!.toJson()['approach_m'], 1500);
-      expect(service.request!.toJson()['tolerance'], .3);
+      expect(service.request!.toJson()['tolerance'], 0.3);
       expect(service.request!.toJson()['search_seconds'], 45);
       expect(tester.widget<FilledButton>(generate).onPressed, isNull);
       await submit();
@@ -255,22 +258,38 @@ void main() {
       final service = FakeRoutes();
       await tester.pumpWidget(
         MaterialApp(
-          home: RouteGenerationScreen(drawing: input.drawing, service: service),
+          home: RouteGenerationScreen(
+            drawing: input.drawing,
+            service: service,
+            placeSearch: (query) async {
+              expect(query, '평촌중앙공원');
+              return const [
+                (
+                  name: '평촌중앙공원',
+                  address: '안양시 동안구',
+                  latitude: 37.39,
+                  longitude: 126.96,
+                ),
+              ];
+            },
+          ),
         ),
       );
-      for (final entry in {
-        'target-distance': '5',
-        'test-longitude': '127',
-        'test-latitude': '37',
-      }.entries) {
-        await tester.ensureVisible(find.byKey(Key(entry.key)));
-        await tester.enterText(find.byKey(Key(entry.key)), entry.value);
-      }
+      await tester.tap(find.widgetWithText(ChoiceChip, '다른 장소'));
+      await tester.pumpAndSettle();
+      final query = find.byKey(const Key('place-query'));
+      await tester.ensureVisible(query);
+      await tester.enterText(query, '평촌중앙공원');
+      await tester.tap(find.byTooltip('장소 검색'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('안양시 동안구'));
+      await tester.pumpAndSettle();
       final generate = find.widgetWithText(FilledButton, '경로 생성');
       await tester.pumpAndSettle();
       await tester.ensureVisible(generate);
       await tester.tap(generate);
       await tester.pump();
+      expect(service.request!.toJson()['location'], [126.96, 37.39]);
       service.pending.completeError(const RouteApiException('인증 실패 (401)'));
       await tester.pumpAndSettle();
       expect(find.text('인증 실패 (401)'), findsOneWidget);

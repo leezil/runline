@@ -94,7 +94,15 @@ extension type _MarkerOptions._(JSObject _) implements JSObject {
 // key, script URL or native browser error (which may contain the URL).
 Future<void>? _sdkReady;
 
-Future<void> _loadSdk(String key) => _sdkReady ??= _requestSdk(key);
+Future<void> loadRunlineKakaoMaps(String key) async {
+  final pending = _sdkReady ??= _requestSdk(key);
+  try {
+    await pending;
+  } catch (_) {
+    if (identical(_sdkReady, pending)) _sdkReady = null;
+    rethrow;
+  }
+}
 
 Future<void> _requestSdk(String key) async {
   final script = web.HTMLScriptElement()
@@ -102,6 +110,7 @@ Future<void> _requestSdk(String key) async {
     ..src = Uri.https('dapi.kakao.com', '/v2/maps/sdk.js', {
       'appkey': key,
       'autoload': 'false',
+      'libraries': 'services',
     }).toString();
   final loaded = Completer<void>();
   final loadSubscription = script.onLoad.listen((_) {
@@ -363,7 +372,7 @@ class _RunlineMapViewState extends State<RunlineMapView> {
 
   Future<void> _initialize() async {
     try {
-      await _loadSdk(_key.trim());
+      await loadRunlineKakaoMaps(_key.trim());
       if (!mounted) return;
       _sdkLoaded = true;
       _layoutMap();

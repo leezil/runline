@@ -275,8 +275,8 @@ void main() {
       expect(submitted!.strokes.length, 2);
       expect(submitted!.points.first, const Offset(40, 40));
       expect(find.text('경로 만들기'), findsOneWidget);
-      expect(find.text('그린 모양을 바탕으로 러닝 경로를 생성할 준비가 되었습니다.'), findsOneWidget);
-      expect(find.text('전체 point 개수: $count개'), findsOneWidget);
+      expect(find.text('어디서 달릴까요?'), findsOneWidget);
+      expect(find.text('현재 위치'), findsOneWidget);
       expect(find.byKey(const Key('target-distance')), findsOneWidget);
       expect(
         tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
