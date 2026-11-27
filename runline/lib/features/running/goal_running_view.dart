@@ -103,6 +103,37 @@ class _GoalRunningViewState extends State<GoalRunningView> {
           ],
         ),
       ),
+      compactActions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton.outlined(
+            tooltip: active ? '일시정지' : (ready ? '다시 시작' : '재개'),
+            onPressed: active
+                ? widget.run.pause
+                : widget.loading || widget.run.preparing
+                ? null
+                : widget.run.startOrResume,
+            iconSize: 18,
+            icon: Icon(active ? Icons.pause : Icons.play_arrow),
+          ),
+          const SizedBox(width: 4),
+          Tooltip(
+            message: '종료 · 길게 눌러 종료',
+            child: FilledButton(
+              onPressed: null,
+              onLongPress: widget.loading ? null : widget.finish,
+              style: FilledButton.styleFrom(
+                shape: const CircleBorder(),
+                padding: EdgeInsets.zero,
+                fixedSize: const Size.square(40),
+                minimumSize: const Size.square(40),
+                tapTargetSize: MaterialTapTargetSize.padded,
+              ),
+              child: const Icon(Icons.stop, size: 18),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

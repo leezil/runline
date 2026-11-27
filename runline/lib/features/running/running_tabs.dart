@@ -39,6 +39,7 @@ class _RunningTabsState extends State<RunningTabs> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Column(
       children: [
         Expanded(
@@ -48,14 +49,36 @@ class _RunningTabsState extends State<RunningTabs> {
             children: [widget.running, _splitPage(widget.elapsed)],
           ),
         ),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 0, label: Text('러닝')),
-            ButtonSegment(value: 1, label: Text('구간')),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (final (index, label) in const [(0, '러닝'), (1, '구간')])
+              Semantics(
+                selected: _page == index,
+                child: Tooltip(
+                  message: label,
+                  child: InkResponse(
+                    onTap: () => _showPage(index),
+                    radius: 16,
+                    child: SizedBox(
+                      width: 28,
+                      height: 32,
+                      child: Center(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: _page == index
+                                ? colors.onSurface
+                                : colors.onSurface.withValues(alpha: 0.32),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const SizedBox.square(dimension: 6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
-          selected: {_page},
-          showSelectedIcon: false,
-          onSelectionChanged: (value) => _showPage(value.single),
         ),
         const SizedBox(height: AppSpacing.sm),
       ],

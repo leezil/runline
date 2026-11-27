@@ -19,6 +19,10 @@ void main() {
   testWidgets(
     'Android keeps one GPS stream across screen lock and saves background points',
     (tester) async {
+      tester.view.physicalSize = const Size(320, 740);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final history = FakeRunningHistory();
       final gps = FakeRunningLocation();
       var elapsed = Duration.zero;
@@ -50,7 +54,35 @@ void main() {
       await tester.pump();
       expect(gps.subscriptions, 1);
       expect(gps.cancellations, 0);
-      await tester.tap(find.text('종료'));
+      final handle = find.byKey(const Key('running-sheet-handle'));
+      expect(find.text('종료').hitTestable(), findsOneWidget);
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+      expect(find.text('종료'), findsNothing);
+      final finish = find.byTooltip('종료');
+      final rowCenter = tester.getCenter(finish).dy;
+      expect(tester.getCenter(find.byTooltip('일시정지')).dy, rowCenter);
+      for (final label in ['거리', '시간', '평균 페이스']) {
+        expect(find.text(label).hitTestable(), findsOneWidget);
+        expect(
+          tester
+              .getRect(finish)
+              .contains(
+                Offset(
+                  tester.getCenter(finish).dx,
+                  tester.getCenter(find.text(label)).dy,
+                ),
+              ),
+          isTrue,
+        );
+      }
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('종료'), findsNothing);
+      expect(find.text('종료').hitTestable(), findsOneWidget);
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+      await tester.tap(finish);
       await tester.pumpAndSettle();
       expect(gps.cancellations, 1);
       expect(history.records.values.single.isFinished, true);
@@ -186,10 +218,10 @@ void main() {
       ),
       findsNothing,
     );
-    await tester.tap(find.text('구간'));
+    await tester.tap(find.byTooltip('구간'));
     await tester.pumpAndSettle();
     expect(find.text('구간 페이스').hitTestable(), findsOneWidget);
-    await tester.tap(find.text('러닝'));
+    await tester.tap(find.byTooltip('러닝'));
     await tester.pumpAndSettle();
     expect(map.hitTestable(), findsOneWidget);
     await tester.tap(handle);
