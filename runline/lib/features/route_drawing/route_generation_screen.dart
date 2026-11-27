@@ -6,7 +6,6 @@ import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import 'drawing_controller.dart';
 import '../route_generation/route_api.dart';
-import '../route_generation/route_search_settings.dart';
 import '../route_recommendation/recommended_route.dart';
 import '../route_recommendation/route_recommendation_screen.dart';
 import '../running/running_location.dart';
@@ -33,11 +32,29 @@ class RouteGenerationScreen extends StatefulWidget {
   State<RouteGenerationScreen> createState() => _RouteGenerationScreenState();
 }
 
+enum _SearchRange {
+  close('가까이', 500, .1, '500 m'),
+  standard('보통', 1000, .2, '1 km'),
+  wide('넓게', 1500, .3, '1.5 km');
+
+  const _SearchRange(
+    this.label,
+    this.approachMeters,
+    this.tolerance,
+    this.approachLabel,
+  );
+
+  final String label;
+  final double approachMeters;
+  final double tolerance;
+  final String approachLabel;
+}
+
 class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
   final _target = TextEditingController();
   final _longitude = TextEditingController();
   final _latitude = TextEditingController();
-  final _settings = RouteSearchSettingsController();
+  _SearchRange _range = _SearchRange.standard;
   late final RouteService _service =
       widget.service ?? RouteApi(config: widget.config);
   bool _busy = false;
@@ -54,7 +71,6 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
     _target.dispose();
     _longitude.dispose();
     _latitude.dispose();
-    _settings.dispose();
     if (widget.service == null) _service.close();
     super.dispose();
   }
@@ -116,49 +132,45 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
     }
   }
 
-  Future<void> _request({bool health = false}) async {
+  Future<void> _request() async {
     if (_busy) return;
     setState(() {
       _busy = true;
       _message = null;
     });
     try {
-      if (health) {
-        await _service.health();
-        if (mounted) {
-          setState(() => _message = '서버 상태 확인 성공 · 경로 생성 인증 성공을 의미하지 않습니다.');
-        }
-      } else {
-        final target = double.tryParse(_target.text.trim());
-        final lon = double.tryParse(_longitude.text.trim());
-        final lat = double.tryParse(_latitude.text.trim());
-        if (target == null) {
-          throw const RouteApiException('거리 범위 안에서 사용할 목표 거리(km)를 직접 입력해주세요.');
-        }
-        if (lon == null || lat == null) {
-          throw const RouteApiException('현재 위치를 선택하거나 코스를 찾을 기준 좌표를 입력해주세요.');
-        }
-        final request = RouteRequest(
-          input: _input,
-          targetDistanceKm: target,
-          longitude: lon,
-          latitude: lat,
-          options: _settings.read(),
-        );
-        request.toJson();
-        final routes = await _service.generate(request);
-        if (!mounted) return;
-        // Keep this request locked until the result screen is dismissed.
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute(
-            builder: (_) => RouteRecommendationScreen(
-              input: _input,
-              routes: routes,
-              result: routes,
-            ),
-          ),
-        );
+      final target = double.tryParse(_target.text.trim());
+      final lon = double.tryParse(_longitude.text.trim());
+      final lat = double.tryParse(_latitude.text.trim());
+      if (target == null) {
+        throw const RouteApiException('거리 범위 안에서 사용할 목표 거리(km)를 직접 입력해주세요.');
       }
+      if (lon == null || lat == null) {
+        throw const RouteApiException('현재 위치를 선택하거나 코스를 찾을 기준 좌표를 입력해주세요.');
+      }
+      final request = RouteRequest(
+        input: _input,
+        targetDistanceKm: target,
+        longitude: lon,
+        latitude: lat,
+        options: RouteSearchOptions(
+          approachMeters: _range.approachMeters,
+          tolerance: _range.tolerance,
+        ),
+      );
+      request.toJson();
+      final routes = await _service.generate(request);
+      if (!mounted) return;
+      // Keep this request locked until the result screen is dismissed.
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => RouteRecommendationScreen(
+            input: _input,
+            routes: routes,
+            result: routes,
+          ),
+        ),
+      );
     } on RouteApiException catch (error) {
       if (mounted) {
         setState(
@@ -242,7 +254,40 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
               ),
               decoration: const InputDecoration(labelText: '기준 위도 (32~39)'),
             ),
-            RouteSearchSettings(controller: _settings, enabled: !_busy),
+            Text('어디까지 찾아볼까요?', style: Theme.of(context).textTheme.titleMedium),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final range in _SearchRange.values)
+                  ChoiceChip(
+                    label: Text(range.label),
+                    selected: _range == range,
+                    onSelected: !_busy && !_locating
+                        ? (_) => setState(() => _range = range)
+                        : null,
+                  ),
+              ],
+            ),
+            ValueListenableBuilder(
+              valueListenable: _target,
+              builder: (context, value, _) {
+                final target = double.tryParse(value.text.trim());
+                final percent = (_range.tolerance * 100).round();
+                final distance =
+                    target != null &&
+                        target.isFinite &&
+                        target >= widget.minDistanceKm &&
+                        target >= .3 &&
+                        target <= widget.maxDistanceKm &&
+                        target <= 8
+                    ? '약 ${(target * (1 - _range.tolerance)).toStringAsFixed(2)}~${(target * (1 + _range.tolerance)).toStringAsFixed(2)} km'
+                    : '목표 거리의 ±$percent%';
+                return Text(
+                  '선택한 장소에서 ${_range.approachLabel} 이내에 시작하고, '
+                  '길이가 ${distance}인 코스를 찾아요.',
+                );
+              },
+            ),
             if (widget.service == null && !widget.config.hasToken)
               const Text(
                 'API_TOKEN 설정이 필요합니다. config/app.local.json에 공유 개발 토큰을 설정하고 다시 실행해주세요.',
@@ -256,10 +301,6 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
               const LinearProgressIndicator(),
               const Text('요청 중입니다. 화면을 나가거나 120초가 지나도 서버 계산은 계속될 수 있습니다.'),
             ],
-            OutlinedButton(
-              onPressed: _busy ? null : () => _request(health: true),
-              child: const Text('서버 상태 확인'),
-            ),
             const SizedBox(height: AppSpacing.xs),
             FilledButton(
               onPressed:

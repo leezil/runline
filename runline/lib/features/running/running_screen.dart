@@ -351,6 +351,41 @@ class _RunningScreenState extends State<RunningScreen>
           ],
         ],
       );
+      final toggleDisabled = _run.preparing || _loadingHistory;
+      void pauseOrResume() {
+        if (_timer.status == RunningStatus.running) {
+          _run.pause();
+        } else {
+          _run.startOrResume();
+        }
+      }
+
+      final toggleIcon = _timer.status == RunningStatus.running
+          ? Icons.pause
+          : Icons.play_arrow;
+      final toggleLabel = switch (_timer.status) {
+        RunningStatus.ready => '다시 시작',
+        RunningStatus.paused => '재개',
+        _ => '일시정지',
+      };
+      final compactActions = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton.outlined(
+            tooltip: toggleLabel,
+            onPressed: toggleDisabled ? null : pauseOrResume,
+            iconSize: 18,
+            icon: Icon(toggleIcon),
+          ),
+          const SizedBox(width: 4),
+          IconButton.filled(
+            tooltip: '종료',
+            onPressed: _loadingHistory ? null : _finish,
+            iconSize: 18,
+            icon: const Icon(Icons.stop),
+          ),
+        ],
+      );
       final actions = Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
         child: finished
@@ -387,25 +422,9 @@ class _RunningScreenState extends State<RunningScreen>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _run.preparing || _loadingHistory
-                          ? null
-                          : () {
-                              if (_timer.status == RunningStatus.running) {
-                                _run.pause();
-                              } else {
-                                _run.startOrResume();
-                              }
-                            },
-                      icon: Icon(
-                        _timer.status == RunningStatus.running
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                      ),
-                      label: Text(switch (_timer.status) {
-                        RunningStatus.ready => '다시 시작',
-                        RunningStatus.paused => '재개',
-                        _ => '일시정지',
-                      }),
+                      onPressed: toggleDisabled ? null : pauseOrResume,
+                      icon: Icon(toggleIcon),
+                      label: Text(toggleLabel),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -427,6 +446,7 @@ class _RunningScreenState extends State<RunningScreen>
         details: details,
         scrollableDetails: nav != null,
         actions: actions,
+        compactActions: finished ? null : compactActions,
         revealDetails: _storageError,
         collapsible: !finished,
       );
