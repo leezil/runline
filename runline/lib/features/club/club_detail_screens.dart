@@ -63,7 +63,36 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 }
 
 class _ClubScaffold extends StatelessWidget { const _ClubScaffold({required this.title, required this.child, this.trailing = const []}); final String title; final Widget child; final List<IconData> trailing; @override Widget build(BuildContext context) => Scaffold(body: SafeArea(child: Column(children: [Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 0), child: _ClubHeader(title: title, trailing: trailing)), Expanded(child: child)]))); }
-class _ClubHeader extends StatelessWidget { const _ClubHeader({required this.title, this.trailing = const []}); final String title; final List<IconData> trailing; @override Widget build(BuildContext context) => Row(children: [IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.chevron_left), tooltip: '뒤로'), Text(title, style: Theme.of(context).textTheme.headlineMedium), const Spacer(), ...trailing.map((icon) => IconButton(onPressed: () {}, icon: Icon(icon)))]); }
+class _ClubHeader extends StatelessWidget {
+  const _ClubHeader({required this.title, this.trailing = const []});
+
+  final String title;
+  final List<IconData> trailing;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      IconButton(
+        onPressed: () => Navigator.of(context).pop(),
+        icon: const Icon(Icons.chevron_left),
+        tooltip: '뒤로',
+      ),
+      Text(title, style: Theme.of(context).textTheme.headlineMedium),
+      const Spacer(),
+      ...trailing.map(
+        (icon) => IconButton(
+          onPressed: () {},
+          icon: Icon(icon),
+          tooltip: icon == Icons.search
+              ? '검색'
+              : icon == Icons.add
+              ? '추가'
+              : null,
+        ),
+      ),
+    ],
+  );
+}
 class _Avatar extends StatelessWidget { const _Avatar({required this.name, this.muted = false}); final String name; final bool muted; @override Widget build(BuildContext context) => CircleAvatar(radius: 21, backgroundColor: muted ? const Color(0xFFD8D8D8) : const Color(0xFFE6E9FF), child: muted ? null : Text(name.substring(0, 1), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary))); }
 class _ChatDateDivider extends StatelessWidget {
   const _ChatDateDivider({required this.date});
