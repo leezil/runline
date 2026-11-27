@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
-import '../../shared/media/club_image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
+import 'feed_follow_list_screen.dart';
 import 'feed_post_screen.dart';
 import 'widgets/feed_avatar.dart';
 
@@ -43,6 +43,7 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
   void initState() {
     super.initState();
     _api.session.addListener(_sessionChanged);
+    _api.profileChanges.addListener(_profileChanged);
     _load();
   }
 
@@ -53,7 +54,11 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
       (oldWidget.api ?? RunlineApi.instance).session.removeListener(
         _sessionChanged,
       );
+      (oldWidget.api ?? RunlineApi.instance).profileChanges.removeListener(
+        _profileChanged,
+      );
       _api.session.addListener(_sessionChanged);
+      _api.profileChanges.addListener(_profileChanged);
     }
     if (oldWidget.api != widget.api || oldWidget.userId != widget.userId) {
       _changingFollow = false;
@@ -64,6 +69,7 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
   @override
   void dispose() {
     _api.session.removeListener(_sessionChanged);
+    _api.profileChanges.removeListener(_profileChanged);
     super.dispose();
   }
 
@@ -71,6 +77,8 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
     _changingFollow = false;
     _load();
   }
+
+  void _profileChanged() => _load();
 
   bool _current(int generation) => mounted && generation == _generation;
   String _message(Object error) => error is RunlineApiException
@@ -212,6 +220,27 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
     if (mounted) await _load();
   }
 
+  Future<void> _openFollowList({required bool following}) async {
+    final profile = _profile;
+    if (profile == null) return;
+    var changed = false;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => FeedFollowListScreen(
+          userId: profile['id'] as String,
+          following: following,
+          ownProfile: _ownProfile,
+          api: _api,
+          onFollowChanged: () {
+            changed = true;
+            widget.onFollowChanged?.call();
+          },
+        ),
+      ),
+    );
+    if (mounted && changed) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
@@ -219,24 +248,6 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_ownProfile || widget.userId == null ? '내 프로필' : '프로필'),
-        actions: [
-          if (_ownProfile)
-            IconButton(
-              tooltip: '프로필 사진 변경',
-              icon: const Icon(Icons.add_a_photo_outlined),
-              onPressed: () async {
-                final saved = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => ClubImageComposeScreen(
-                      kind: ClubImageComposeKind.avatar,
-                      api: _api,
-                    ),
-                  ),
-                );
-                if (saved == true && mounted) await _load();
-              },
-            ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -277,8 +288,14 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Text('팔로워 ${profile['followerCount']}'),
-                          Text('팔로잉 ${profile['followingCount']}'),
+                          TextButton(
+                            onPressed: () => _openFollowList(following: false),
+                            child: Text('팔로워 ${profile['followerCount']}'),
+                          ),
+                          TextButton(
+                            onPressed: () => _openFollowList(following: true),
+                            child: Text('팔로잉 ${profile['followingCount']}'),
+                          ),
                         ],
                       ),
                       if (!_ownProfile) ...[

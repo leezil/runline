@@ -30,6 +30,7 @@ class _FeedPostScreenState extends State<FeedPostScreen> {
   void initState() {
     super.initState();
     widget.api.session.addListener(_load);
+    widget.api.profileChanges.addListener(_load);
     _load();
   }
 
@@ -38,7 +39,9 @@ class _FeedPostScreenState extends State<FeedPostScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.api != widget.api) {
       oldWidget.api.session.removeListener(_load);
+      oldWidget.api.profileChanges.removeListener(_load);
       widget.api.session.addListener(_load);
+      widget.api.profileChanges.addListener(_load);
     }
     if (oldWidget.api != widget.api || oldWidget.postId != widget.postId) {
       _load();
@@ -48,6 +51,7 @@ class _FeedPostScreenState extends State<FeedPostScreen> {
   @override
   void dispose() {
     widget.api.session.removeListener(_load);
+    widget.api.profileChanges.removeListener(_load);
     super.dispose();
   }
 

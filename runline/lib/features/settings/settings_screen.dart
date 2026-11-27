@@ -1,25 +1,94 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_colors.dart';
-import '../auth/runline_auth.dart';
 import '../../app/app_spacing.dart';
+import '../../shared/media/runline_api.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/icon_label_action.dart';
+import '../club/club_settings_screen.dart';
+import '../club/club_ui.dart';
+import '../feed/widgets/feed_avatar.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.api});
+
+  final RunlineApi? api;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  RunlineApi get _api => widget.api ?? RunlineApi.instance;
   bool _signingOut = false;
+  Map<String, dynamic>? _profile;
+  String? _profileError;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _api.session.addListener(_loadProfile);
+    _api.profileChanges.addListener(_loadProfile);
+    _loadProfile();
+  }
+
+  @override
+  void didUpdateWidget(SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.api != widget.api) {
+      final oldApi = oldWidget.api ?? RunlineApi.instance;
+      oldApi.session.removeListener(_loadProfile);
+      oldApi.profileChanges.removeListener(_loadProfile);
+      _api.session.addListener(_loadProfile);
+      _api.profileChanges.addListener(_loadProfile);
+      _loadProfile();
+    }
+  }
+
+  @override
+  void dispose() {
+    _api.session.removeListener(_loadProfile);
+    _api.profileChanges.removeListener(_loadProfile);
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    final generation = ++_generation;
+    setState(() {
+      _profile = null;
+      _profileError = null;
+    });
+    if (!_api.session.isSignedIn) return;
+    try {
+      final result = await _api.json('/me');
+      if (mounted && generation == _generation) {
+        setState(() => _profile = result['profile'] as Map<String, dynamic>);
+      }
+    } catch (error) {
+      if (mounted && generation == _generation) {
+        setState(
+          () => _profileError = error is RunlineApiException
+              ? error.message
+              : '프로필을 불러오지 못했어요.',
+        );
+      }
+    }
+  }
+
+  Future<void> _editProfile() async {
+    if (!_api.session.isSignedIn) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('로그인 후 프로필을 편집해주세요.')));
+      return;
+    }
+    await openClubPage<bool>(context, _api, ClubProfileEditorScreen(api: _api));
+    if (mounted) await _loadProfile();
+  }
 
   Future<void> _signOut() async {
     setState(() => _signingOut = true);
     try {
-      await RunlineAuth.instance.signOut();
+      await _api.session.signOut();
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (mounted) {
@@ -49,27 +118,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            const Center(
-              child: CircleAvatar(
+            Center(
+              child: FeedAvatar(
+                name: _profile?['nickname'] as String? ?? '러너',
+                avatarUrl: _profile?['avatarUrl'] as String?,
+                api: _api,
                 radius: 44,
-                backgroundColor: Color(0xFFE6E9FF),
-                child: Icon(
-                  Icons.person_outline,
-                  size: 44,
-                  color: AppColors.primary,
-                ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Center(child: Text('민지 러너', style: textTheme.headlineMedium)),
-            const SizedBox(height: AppSpacing.xxs),
             Center(
-              child: Text('runline@runner.com', style: textTheme.bodySmall),
+              child: Text(
+                _profile?['nickname'] as String? ?? '러너',
+                style: textTheme.headlineMedium,
+              ),
             ),
+            const SizedBox(height: AppSpacing.xxs),
+            if (!_api.session.isSignedIn)
+              const Center(child: Text('로그인 후 프로필을 편집해주세요.')),
+            if (_profileError != null)
+              TextButton(
+                onPressed: _loadProfile,
+                child: Text('$_profileError 다시 시도'),
+              ),
             const SizedBox(height: AppSpacing.xxl),
             ListenableBuilder(
-              listenable: RunlineAuth.instance,
-              builder: (context, _) => RunlineAuth.instance.isSignedIn
+              listenable: _api.session,
+              builder: (context, _) => _api.session.isSignedIn
                   ? OutlinedButton.icon(
                       onPressed: _signingOut ? null : _signOut,
                       icon: const Icon(Icons.logout),
@@ -93,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     IconLabelAction(
                       label: '프로필 편집',
                       icon: Icons.edit_outlined,
-                      onPressed: () {},
+                      onPressed: _signingOut ? null : _editProfile,
                     ),
                     IconLabelAction(
                       label: '도전 과제',

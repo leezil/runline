@@ -22,13 +22,13 @@ class ClubScreen extends StatelessWidget {
     return ClubSessionGate(
       api: client,
       allowAccountSwitch: true,
-      child: _ClubHome(api: client),
+      child: _ClubHome(key: ObjectKey(client), api: client),
     );
   }
 }
 
 class _ClubHome extends StatefulWidget {
-  const _ClubHome({required this.api});
+  const _ClubHome({super.key, required this.api});
   final RunlineApi api;
   @override
   State<_ClubHome> createState() => _ClubHomeState();
@@ -48,12 +48,14 @@ class _ClubHomeState extends State<_ClubHome> {
   void initState() {
     super.initState();
     _list = ClubPageController(_api, '/clubs/recommended');
+    _api.profileChanges.addListener(_load);
     _load();
   }
 
   @override
   void dispose() {
     _generation++;
+    _api.profileChanges.removeListener(_load);
     _list.dispose();
     super.dispose();
   }

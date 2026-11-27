@@ -4,9 +4,21 @@ import { HttpError } from "../../http/http-error";
 import { parseUuid } from "../../http/parse-uuid";
 import type { AuthEnv } from "../auth/require-auth";
 import { followUser } from "./follow-user";
+import { followListPage, listFollows, type FollowListKind } from "./list-follows";
 import { unfollowUser } from "./unfollow-user";
 
 const followRoutes = new Hono<AuthEnv>();
+
+for (const kind of ["followers", "following"] satisfies FollowListKind[]) {
+	followRoutes.get(`/users/:userId/${kind}`, async (c) => {
+		const userId = parseUuid(c.req.param("userId"), "userId");
+		const page = followListPage(c.req.query());
+		const result = await withDatabase(c.env.HYPERDRIVE.connectionString, (client) =>
+			listFollows(client, userId, c.get("userId"), kind, page),
+		);
+		return c.json({ ok: true, ...result });
+	});
+}
 
 followRoutes.put("/users/:userId/follow", async (c) => {
 	const followerId = c.get("userId");

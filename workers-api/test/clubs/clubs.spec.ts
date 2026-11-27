@@ -257,20 +257,79 @@ afterAll(async () => { await db?.close(); });
 
 it("shares main profile updates with feed authors, club members and notices", async () => {
 	const { club } = await joinedClub();
+	const source = await sharp({ create: { width: 12, height: 8, channels: 3, background: "green" } }).png().toBuffer();
+	const uploaded = await uploadImage(owner, "/me/avatar", source);
+	expect(uploaded.status).toBe(201);
+	const { image } = await uploaded.json() as any;
 	await call(owner, "/me/profile", "PATCH", { nickname: "통합 프로필" });
-	expect((await call(owner, "/me")).profile.nickname).toBe("통합 프로필");
-	expect((await call(member, `/clubs/${club.id}/members?query=통합`)).items[0].nickname).toBe("통합 프로필");
+	expect((await call(owner, "/me")).profile).toMatchObject({ nickname: "통합 프로필", avatarUrl: image.url });
+	expect((await call(member, `/clubs/${club.id}/members?query=통합`)).items[0]).toMatchObject({ nickname: "통합 프로필", avatar_url: image.url });
 	const { notice } = await call(owner, `/clubs/${club.id}/notices`, "POST", { title: "공지", content: "모임 안내" }, 201);
 	expect((await call(member, `/clubs/${club.id}/notices/${notice.id}`)).notice.author_nickname).toBe("통합 프로필");
 	const { post } = await call(owner, "/feed/posts", "POST", { body: "러닝 완료" }, 201);
-	expect(post.author.nickname).toBe("통합 프로필");
+	expect(post.author).toMatchObject({ nickname: "통합 프로필", avatarUrl: image.url });
+	await call(member, `/users/${owner.id}/follow`, "PUT");
+	expect((await call(member, `/users/${member.id}/following`)).users[0]).toMatchObject({ nickname: "통합 프로필", avatarUrl: image.url });
+});
+
+describe("follower and following lists", () => {
+	it("returns the selected user's correct relationships and the viewer's follow state", async () => {
+		await call(owner, `/users/${member.id}/follow`, "PUT");
+		await call(owner, `/users/${other.id}/follow`, "PUT");
+		await call(member, `/users/${owner.id}/follow`, "PUT");
+		await call(newcomer, `/users/${owner.id}/follow`, "PUT");
+		await call(other, `/users/${newcomer.id}/follow`, "PUT");
+		const following = await call(owner, `/users/${owner.id}/following`);
+		expect(following.users).toEqual([member.id, other.id].sort().map((id) => ({
+			id, nickname: id === member.id ? "멤버" : "다른클럽장", avatarUrl: null, isFollowing: true,
+		})));
+		expect(following.nextCursor).toBeNull();
+		const followers = await call(other, `/users/${owner.id}/followers`);
+		expect(followers.users).toEqual([member.id, newcomer.id].sort().map((id) => ({
+			id, nickname: id === member.id ? "멤버" : "새러너", avatarUrl: null, isFollowing: id === newcomer.id,
+		})));
+	});
+
+	it("paginates without duplicates and removes an unfollowed user from both lists and counts", async () => {
+		for (const target of [member, other, newcomer]) await call(owner, `/users/${target.id}/follow`, "PUT");
+		const sortedIds = [member.id, other.id, newcomer.id].sort();
+		const first = await call(owner, `/users/${owner.id}/following?limit=1`);
+		expect(first.users.map((user: { id: string }) => user.id)).toEqual(sortedIds.slice(0, 1));
+		expect(first.nextCursor).toBe(sortedIds[0]);
+		await call(owner, `/users/${sortedIds[0]}/follow`, "DELETE");
+		const next = await call(owner, `/users/${owner.id}/following?limit=2&cursor=${first.nextCursor}`);
+		expect(next.users.map((user: { id: string }) => user.id)).toEqual(sortedIds.slice(1));
+		expect(next.nextCursor).toBeNull();
+		expect((await call(owner, "/me")).profile.followingCount).toBe(2);
+		expect((await call(owner, `/users/${sortedIds[0]}/followers`)).users).toEqual([]);
+		expect((await call(owner, `/users/${sortedIds[0]}`)).profile.followerCount).toBe(0);
+	});
+
+	it("uses fallback names and returns empty lists for users with no relationships", async () => {
+		expect(await call(owner, `/users/${owner.id}/followers`)).toMatchObject({ users: [], nextCursor: null });
+		expect(await call(owner, `/users/${owner.id}/following`)).toMatchObject({ users: [], nextCursor: null });
+		await db.query("DELETE FROM runline_user_profiles WHERE user_id = $1", [member.id]);
+		await call(owner, `/users/${member.id}/follow`, "PUT");
+		expect((await call(owner, `/users/${owner.id}/following`)).users[0].nickname).toBe(`러너 ${member.id.slice(0, 8)}`);
+	});
+
+	it("authenticates both lists and rejects invalid targets, cursors and page sizes", async () => {
+		for (const kind of ["followers", "following"]) {
+			expect((await request(null, `/users/${owner.id}/${kind}`)).status).toBe(401);
+			expect((await request(owner, `/users/invalid/${kind}`)).status).toBe(400);
+			expect((await request(owner, `/users/00000000-0000-0000-0000-000000000000/${kind}`)).status).toBe(404);
+			for (const query of ["cursor=invalid", "cursor=", "limit=0", "limit=101", "limit=-1", "limit=1.5"]) {
+				expect((await request(owner, `/users/${owner.id}/${kind}?${query}`)).status).toBe(400);
+			}
+		}
+	});
 });
 
 it("imports legacy club profiles without replacing main profiles", async () => {
 	await db.query("UPDATE runline_users SET nickname = '예전 닉네임' WHERE id = $1", [owner.id]);
 	await db.query("DELETE FROM runline_user_profiles WHERE user_id = $1", [member.id]);
 	await db.query("UPDATE runline_users SET nickname = '클럽 프로필' WHERE id = $1", [member.id]);
-	await db.exec(await readFile(new NodeURL("../../migrations/007_club_profiles.sql", import.meta.url), "utf8"));
+	await db.exec(await readFile(new NodeURL("../../migrations/009_club_profiles.sql", import.meta.url), "utf8"));
 	expect((await call(owner, "/me/profile")).profile.nickname).toBe("클럽장");
 	expect((await call(member, "/me")).profile.nickname).toBe("클럽 프로필");
 });

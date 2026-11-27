@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../shared/media/club_image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
+import '../feed/widgets/feed_avatar.dart';
 import 'club_members_screen.dart';
 import 'club_ui.dart';
 
@@ -342,15 +343,15 @@ class _ClubProfileEditorScreenState extends State<ClubProfileEditorScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  if (_profile!['avatar_url'] != null)
-                    SizedBox(
-                      height: 160,
-                      child: RunlineImage(
-                        path: _profile!['avatar_url'] as String,
-                        api: _api,
-                        fit: BoxFit.contain,
-                      ),
+                  Center(
+                    child: FeedAvatar(
+                      name: _profile!['nickname'] as String,
+                      avatarUrl: _profile!['avatar_url'] as String?,
+                      api: _api,
+                      radius: 64,
                     ),
+                  ),
+                  const SizedBox(height: 16),
                   Wrap(
                     spacing: 8,
                     children: [
@@ -371,7 +372,11 @@ class _ClubProfileEditorScreenState extends State<ClubProfileEditorScreen> {
                     controller: _nickname,
                     enabled: !_busy,
                     maxLength: 30,
-                    decoration: const InputDecoration(labelText: '닉네임'),
+                    decoration: const InputDecoration(
+                      labelText: '닉네임',
+                      helperText: '클럽과 피드 등 앱 전체에서 사용하는 이름이에요.',
+                      helperMaxLines: 2,
+                    ),
                     validator: (value) => value?.trim().isNotEmpty == true
                         ? null
                         : '닉네임을 입력해주세요.',

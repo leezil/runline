@@ -32,6 +32,7 @@ class _FeedScreenState extends State<FeedScreen> {
   void initState() {
     super.initState();
     _api.session.addListener(_sessionChanged);
+    _api.profileChanges.addListener(_sessionChanged);
     _load(reset: true);
   }
 
@@ -42,7 +43,11 @@ class _FeedScreenState extends State<FeedScreen> {
       (oldWidget.api ?? RunlineApi.instance).session.removeListener(
         _sessionChanged,
       );
+      (oldWidget.api ?? RunlineApi.instance).profileChanges.removeListener(
+        _sessionChanged,
+      );
       _api.session.addListener(_sessionChanged);
+      _api.profileChanges.addListener(_sessionChanged);
       _load(reset: true);
     }
   }
@@ -50,6 +55,7 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void dispose() {
     _api.session.removeListener(_sessionChanged);
+    _api.profileChanges.removeListener(_sessionChanged);
     super.dispose();
   }
 

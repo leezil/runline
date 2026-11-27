@@ -28,6 +28,10 @@ class RunlineApi {
   final http.Client _client;
   final RunlineAuth session;
   final Uri baseUri;
+  final _profileRevision = ValueNotifier<int>(0);
+  Listenable get profileChanges => _profileRevision;
+
+  void notifyProfileChanged() => _profileRevision.value++;
 
   Uri endpoint(String path) {
     if (baseUri.userInfo.isNotEmpty ||
@@ -72,6 +76,7 @@ class RunlineApi {
     String method = 'GET',
     Map<String, dynamic>? body,
   }) async {
+    final owner = session.userId;
     final request = http.Request(method, endpoint('/api/v1$path'));
     request.followRedirects = false;
     request.headers.addAll(await _headers());
@@ -83,7 +88,14 @@ class RunlineApi {
       await _client.send(request).timeout(const Duration(seconds: 45)),
     );
     if (response.statusCode == 204) return {};
-    return _decode(response);
+    final result = _decode(response);
+    if (method == 'PATCH' &&
+        path == '/me/profile' &&
+        session.isSignedIn &&
+        session.userId == owner) {
+      notifyProfileChanged();
+    }
+    return result;
   }
 
   Future<Map<String, dynamic>> upload(
@@ -105,6 +117,7 @@ class RunlineApi {
     if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
       throw const RunlineApiException('파일은 1바이트~5MB까지 올릴 수 있어요.');
     }
+    final owner = session.userId;
     final request = http.MultipartRequest('POST', endpoint('/api/v1$path'));
     request.followRedirects = false;
     request.headers.addAll(await _headers());
@@ -119,7 +132,11 @@ class RunlineApi {
     final response = await http.Response.fromStream(
       await _client.send(request).timeout(const Duration(seconds: 60)),
     );
-    return _decode(response);
+    final result = _decode(response);
+    if (path == '/me/avatar' && session.isSignedIn && session.userId == owner) {
+      notifyProfileChanged();
+    }
+    return result;
   }
 
   Future<Uint8List> imageBytes(String path, {bool thumbnail = false}) async {

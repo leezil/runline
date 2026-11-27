@@ -163,6 +163,7 @@ void main() {
       await tester.tap(find.byTooltip('내 프로필'));
       await tester.pumpAndSettle();
       expect(find.text('내 이름'), findsOneWidget);
+      expect(find.byTooltip('프로필 사진 변경'), findsNothing);
       expect(find.text('팔로우'), findsNothing);
       expect(find.text('내 첫 글'), findsOneWidget);
       await tester.scrollUntilVisible(
@@ -196,6 +197,85 @@ void main() {
     expect(find.text('팔로우'), findsNothing);
     expect(find.text('아직 작성한 게시물이 없어요.'), findsOneWidget);
   });
+
+  testWidgets(
+    'profile counts open the matching list and unfollow refreshes counts and feed',
+    (tester) async {
+      var following = true;
+      var feedCalls = 0;
+      final listRequests = <String>[];
+      final api = apiFor((request) async {
+        switch (request.url.path) {
+          case '/api/v1/feed/recommended':
+            feedCalls++;
+            return json({'posts': [], 'nextCursor': null});
+          case '/api/v1/me':
+            return json({
+              'profile': {
+                ...profile('me'),
+                'followingCount': following ? 1 : 0,
+              },
+            });
+          case '/api/v1/me/posts':
+            return json({'posts': [], 'nextCursor': null});
+          case '/api/v1/users/me/followers':
+            listRequests.add('followers');
+            return json({
+              'users': [
+                {'id': 'follower', 'nickname': '나를 팔로우한 러너'},
+              ],
+              'nextCursor': null,
+            });
+          case '/api/v1/users/me/following':
+            listRequests.add('following');
+            return json({
+              'users': following
+                  ? [
+                      {'id': 'other', 'nickname': '내가 팔로우한 러너'},
+                    ]
+                  : [],
+              'nextCursor': null,
+            });
+          case '/api/v1/users/other/follow':
+            expect(request.method, 'DELETE');
+            following = false;
+            return json({'isFollowing': false});
+          default:
+            fail('Unexpected request: ${request.url}');
+        }
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: FeedScreen(api: api)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('내 프로필'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('팔로워 7'));
+      await tester.pumpAndSettle();
+      expect(find.text('나를 팔로우한 러너'), findsOneWidget);
+      expect(find.text('내가 팔로우한 러너'), findsNothing);
+      expect(find.text('팔로우 취소'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('팔로잉 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('내가 팔로우한 러너'), findsOneWidget);
+      expect(find.text('나를 팔로우한 러너'), findsNothing);
+      await tester.tap(find.text('팔로우 취소'));
+      await tester.pumpAndSettle();
+      expect(find.text('내가 팔로우한 러너'), findsNothing);
+      expect(find.text('아직 팔로잉한 러너가 없어요.'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('팔로잉 0'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(listRequests, ['followers', 'following']);
+      expect(feedCalls, 2);
+    },
+  );
 
   testWidgets(
     'failed mutation retains state and prevents duplicate submission',

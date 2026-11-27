@@ -137,6 +137,8 @@ it.each([
 	["GET", "/me"],
 	["GET", "/me/posts"],
 	["GET", "/users/demo"],
+	["GET", "/users/demo/followers"],
+	["GET", "/users/demo/following"],
 	["PUT", "/users/demo/follow"],
 	["DELETE", "/users/demo/follow"],
 	["GET", "/feed/recommended"],
