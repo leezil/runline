@@ -1,23 +1,39 @@
-# App1 지도·추천 API 로컬 설정
+# 앱 API 통합 설정
 
-앱 사용 방법과 Chrome 실행 명령은 [RUNLINE 앱 안내](../README.md)에서 확인하세요.
+실제 설정은 `app.local.json`, 커밋용 빈 예제는 `app.local.example.json`입니다. 기존 설정이 있다면 덮어쓰지 마세요. 예제를 복사한 뒤 아래 항목을 입력합니다.
 
-- Android: `kakao.example.json`을 `kakao.local.json`으로 복사하고 `KAKAO_NATIVE_APP_KEY`를 입력한다.
-- Web: `kakao.web.local.json`을 만들고 `KAKAO_JAVASCRIPT_KEY`에 JavaScript 키를 입력한다.
-- 추천 API: `route-api.example.json`을 `route-api.local.json`으로 복사하고 현재 HTTPS 서버 주소와 `ROUTE_API_TOKEN`을 입력한다. 임시 ngrok 주소의 유효성은 보장하지 않는다.
-- 기존 로컬 파일은 덮어쓰지 않는다. `config/*.local.json`은 Git 제외 대상이며 예제의 키·토큰 값은 비워 둔다.
-- Android 패키지 `com.example.runline` 및 각 서명 인증서 키 해시(Base64 SHA-1)를 등록한다. Web은 실제 실행 origin을 카카오 허용 도메인으로 등록한다.
-- `--dart-define-from-file`로 빌드 시 주입한다. Flutter asset에 설정 파일을 추가하지 않는다. 빌드 결과에서 설정이 추출될 수 있으므로 운영 비밀은 서버 relay와 사용자 인증으로 처리한다.
-- API는 GET `/v1/health`(토큰 없음), POST `/v1/routes`(Bearer)를 사용한다. Web CORS 및 `Retry-After` 노출 설정을 서버에서 확인한다.
-- GPS·러닝 측정·실제 코스 선택·로컬 기록은 구현되어 있다. 별도 캔버스 그림 입력이며 지도 위 직접 그리기, 실제 백그라운드 GPS, 교차로 회전 안내는 구현하지 않았다.
-- 실제 지도 인증·기기 GPS·실서버 전체 흐름은 자동 테스트/빌드와 별도 검증이 필요하다.
+- `KAKAO_NATIVE_APP_KEY`: Android 앱에 사용할 카카오 Native App Key.
+- `KAKAO_JAVASCRIPT_KEY`: Web 지도에 사용할 카카오 JavaScript 키.
+- `RUNLINE_API_ORIGIN`: 피드·클럽 로그인에 사용할 Runline Workers API의 HTTPS 기본 주소. `/api/v1/auth`는 코드가 붙입니다.
+- `API_BASE_URL`: 경로·시설 요청에 함께 사용할 서버의 HTTPS 기본 주소. `/v1/routes`, `/v1/places`는 각각 코드가 붙입니다.
+- `API_TOKEN`: 경로·시설 요청에 함께 사용할 Bearer 토큰. `Bearer ` 접두사 없이 값만 입력합니다.
 
-## 피드 API 연결
+서버 실행 창의 현재 HTTPS 주소와 해당 서버의 `.api-token` 값을 사용하세요. 서버에서 `DRAWRUN_API_TOKEN`을 설정했다면 그 값이 우선입니다. ngrok 주소가 바뀌면 `API_BASE_URL`만 수정합니다. 두 API 클라이언트는 `lib/shared/config/api_config.dart`의 공통 설정을 읽습니다.
 
-피드는 Workers API의 `GET /api/v1/feed/posts`와 `POST /api/v1/feed/posts`를 사용합니다. 사진 첨부는 `POST /api/v1/feed/posts/:postId/images`, 사진 조회는 응답의 `/api/v1/media/images/:imageId` 경로를 사용합니다. 목록의 `nextCursor`로 다음 페이지를 요청합니다.
+모든 설정은 아래처럼 빌드 시 주입합니다. Flutter 프로젝트 폴더(`pubspec.yaml`이 있는 폴더)에서 실행하세요.
 
-서버 주소는 `--dart-define=RUNLINE_API_BASE_URL=https://<api-host>`로 지정합니다. 기본값은 `http://localhost:8787`이며, 주소에 `/api/v1`을 붙이지 않습니다. 코스 추천용 `ROUTE_API_BASE_URL`과 별도 설정입니다.
+```powershell
+flutter run -d chrome --web-hostname localhost --web-port 5000 --dart-define-from-file=config/app.local.json
+```
 
-모든 피드·사진 요청에는 `RunlineSession`의 RUNLINE 액세스 토큰이 Bearer 헤더로 전달됩니다. 인증 흐름에서 `/api/v1/auth/kakao` 교환 후 받은 RUNLINE 토큰을 `RunlineSession.instance.setAccessToken(token)`에 전달해야 합니다. 카카오 토큰을 피드에 직접 보내지 않습니다. 현재 Flutter에는 로그인 화면이 없어 세션 연결 전에는 로그인 안내가 표시됩니다. 사용자 토큰을 빌드 설정이나 소스에 저장하지 않습니다.
+Android에서는 기기를 선택하고 같은 파일을 사용합니다.
 
-자동 검증: 앱 폴더에서 `flutter test test/feed_screen_test.dart test/image_upload_test.dart`. 이 검증은 HTTP 응답을 대체하며 실제 서버·DB·사진 저장소 연결 검증과는 별개입니다.
+```powershell
+flutter run -d <android-device-id> --dart-define-from-file=config/app.local.json
+```
+
+설정을 변경한 뒤에는 실행 중인 Flutter 앱을 종료하고 다시 실행해야 합니다. 저장소 루트의 `start-chrome.ps1`도 이 파일을 읽으며 파일이 없으면 생성 방법을 안내하고 중단합니다.
+
+카카오 Web 허용 도메인에는 실제 실행 주소인 `http://localhost:5000` 또는 `http://127.0.0.1:5000`을 등록합니다. Android 패키지는 `com.example.runline`이며 서명 인증서 키 해시도 등록해야 합니다.
+
+`*.local.json`은 Git에서 제외하고 `app.local.example.json`은 빈 값으로 커밋합니다. 설정 파일을 Flutter assets에 추가하지 않습니다. 빌드 시 주입한 값도 클라이언트에서 추출될 수 있으므로 운영 인증은 서버와 사용자 인증으로 처리해야 합니다.
+
+공공데이터 수집용 인증키와 Juso 주소·좌표 검색 키는 앱 설정에 넣지 않습니다. 이 키는 runline-api 서버의 `.env`에서 관리하며 앱은 서버에 저장된 시설 결과를 조회합니다.
+
+시설 표시 버튼은 기본 꺼짐입니다. 켠 상태에서 지도 이동이 600ms 동안 멈추면 조회하며, 최근 조회 영역에 15% 여유를 두고 2분간 메모리 캐시를 재사용합니다. 요청은 한 번에 하나, 최소 5초 간격이며 캐시는 최대 12영역입니다. 조회 범위가 너무 넓거나 결과 200건이 잘렸다면 지도를 확대하세요. 오류 시 자동 반복 호출을 멈추며 429 응답은 Retry-After를 따릅니다. 빈 결과는 실제 시설 부재를 보장하지 않습니다.
+
+## 클럽·채팅 연결
+
+클럽·공지·채팅·이미지 API도 `RUNLINE_API_ORIGIN`과 기존 `RunlineAuth` 세션을 사용합니다. 별도의 토큰 전달이나 `RUNLINE_API_BASE_URL` 설정은 필요하지 않습니다. 채팅은 같은 API 주소를 WebSocket 주소로 변환하고 첫 메시지로 인증합니다.
+
+서버의 HTTP 허용 Origin(`RUNLINE_WEB_ORIGIN`)과 WebSocket 허용 Origin(`CHAT_ALLOWED_ORIGINS`)에 실제 웹 실행 주소를 설정합니다. 피드의 기존 본문·사진 첨부·서명 URL 흐름은 유지합니다.

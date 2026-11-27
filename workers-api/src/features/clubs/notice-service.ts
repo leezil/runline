@@ -1,3 +1,4 @@
+import { profileNicknameSql } from "../profile/profile-nickname";
 import { Buffer } from "node:buffer";
 import type { Client } from "pg";
 import { ClubError, invalid, missing } from "./errors";
@@ -11,9 +12,10 @@ type Notice = {
 
 async function findNotice(client: Client, clubId: string, noticeId: string) {
 	const { rows } = await client.query<Notice>(
-		`SELECT n.*, u.id AS author_user_id, u.nickname AS author_nickname, u.avatar_url AS author_avatar_url
+		`SELECT n.*, u.id AS author_user_id, ${profileNicknameSql} AS author_nickname, profile.avatar_url AS author_avatar_url
 		FROM club_notices n JOIN club_memberships m ON m.id = n.author_membership_id
 		JOIN runline_users u ON u.id = m.user_id
+	LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id
 		WHERE n.id = $1 AND n.club_id = $2 AND n.deleted_at IS NULL`, [noticeId, clubId],
 	);
 	return rows[0] ?? missing("Notice");
@@ -25,10 +27,11 @@ export function listNotices(connection: string, userId: string, clubId: string, 
 		const where = seek(page, params, "n.created_at", "n.id", "n.pinned");
 		params.push(page.limit + 1);
 		const { rows } = await client.query<Notice>(
-			`SELECT n.id, n.club_id, n.title, n.pinned, n.created_at, n.updated_at, u.nickname AS author_nickname,
+			`SELECT n.id, n.club_id, n.title, n.pinned, n.created_at, n.updated_at, ${profileNicknameSql} AS author_nickname,
 			(SELECT count(*)::int FROM club_attachments a WHERE a.notice_id = n.id) AS attachment_count
 			FROM club_notices n JOIN club_memberships m ON m.id = n.author_membership_id
 			JOIN runline_users u ON u.id = m.user_id
+	LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id
 			WHERE n.club_id = $1 AND n.deleted_at IS NULL ${where}
 			ORDER BY n.pinned DESC, n.created_at DESC, n.id DESC LIMIT $${params.length}`, params,
 		);

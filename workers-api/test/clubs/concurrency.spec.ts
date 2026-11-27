@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { URL as NodeURL } from "node:url";
 import { Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -20,7 +20,7 @@ describe.skipIf(!process.env.CLUB_TEST_DATABASE_URL)("PostgreSQL multi-connectio
 		await admin.connect();
 		await admin.query(`CREATE SCHEMA ${schema}`);
 		await admin.query(`SET search_path TO ${schema}, public`);
-		for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql", "004_chat.sql"]) {
+		for (const name of (await readdir(new NodeURL("../../migrations/", import.meta.url))).filter((name) => name.endsWith(".sql")).sort()) {
 			await admin.query(await readFile(new NodeURL(`../../migrations/${name}`, import.meta.url), "utf8"));
 		}
 		const url = new NodeURL(original);

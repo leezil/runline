@@ -65,7 +65,9 @@ export async function uploadImage(env: WorkerBindings, userId: string, target: I
 				[imageId, userId, target.purpose, target.clubId ?? null, target.noticeId ?? null, target.postId ?? null, key, thumbnailKey,
 					optimized.width, optimized.height, optimized.full.length, optimized.thumbnail.length]);
 			const image = imageResponse(rows[0]);
-			if (target.purpose === "avatar") await client.query("UPDATE runline_users SET avatar_url = $2 WHERE id = $1", [userId, image.url]);
+			if (target.purpose === "avatar") await client.query(`INSERT INTO runline_user_profiles (user_id, nickname, avatar_url)
+				SELECT id, '러너 ' || left(id::text, 8), $2 FROM runline_users WHERE id = $1
+				ON CONFLICT (user_id) DO UPDATE SET avatar_url = EXCLUDED.avatar_url`, [userId, image.url]);
 			if (target.purpose === "club_cover") await client.query("UPDATE clubs SET image_url = $2, updated_at = clock_timestamp() WHERE id = $1", [target.clubId, image.url]);
 			let attachment;
 			if (target.purpose === "club_notice") {
@@ -136,7 +138,7 @@ async function markDeleted(client: Client, image: ImageRow) {
 	await client.query("UPDATE media_images SET deleted_at = clock_timestamp() WHERE id = $1 AND deleted_at IS NULL", [image.id]);
 	await client.query("DELETE FROM club_attachments WHERE image_id = $1", [image.id]);
 	const url = `/api/v1/media/images/${image.id}`;
-	if (image.purpose === "avatar") await client.query("UPDATE runline_users SET avatar_url = NULL WHERE id = $1 AND avatar_url = $2", [image.uploader_user_id, url]);
+	if (image.purpose === "avatar") await client.query("UPDATE runline_user_profiles SET avatar_url = NULL WHERE user_id = $1 AND avatar_url = $2", [image.uploader_user_id, url]);
 	if (image.purpose === "club_cover") await client.query("UPDATE clubs SET image_url = NULL WHERE id = $1 AND image_url = $2", [image.club_id, url]);
 }
 

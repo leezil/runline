@@ -15,14 +15,20 @@
 	},
 	"upload_source_maps": true,
 	"images": { "binding": "IMAGES" },
-	"r2_buckets": [{ "binding": "MEDIA_BUCKET", "bucket_name": "runline-media" }],
-	"triggers": { "crons": ["17 3 * * *"] },
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
 			"id": "c83c7b825bcd4017ab1e872a76ec2b03"
 		}
-	]
+	],
+	"r2_buckets": [
+		{ "binding": "MEDIA_BUCKET", "bucket_name": "runline-media" },
+		{
+			"binding": "FEED_MEDIA",
+			"bucket_name": "runline-feed-media"
+		}
+	],
+	"triggers": { "crons": ["15 * * * *", "17 3 * * *"] }
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

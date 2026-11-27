@@ -1,3 +1,4 @@
+import { profileNicknameSql } from "../profile/profile-nickname";
 import { ClubError, missing } from "./errors";
 import { addEvent, clubSelect, inClub, requireOwner, requireUnjoined, seek, transaction, updateRow, type Club } from "./repository";
 import { pageResult, type Page, type clubInput, type profileInput } from "./validation";
@@ -19,12 +20,21 @@ export async function myClub(connection: string, userId: string) {
 
 export async function profile(connection: string, userId: string, fields?: ReturnType<typeof profileInput>) {
 	return transaction(connection, async (client) => {
-		if (fields && "avatar_url" in fields) {
+		if (fields) {
 			await client.query("SELECT id FROM runline_users WHERE id = $1 FOR UPDATE", [userId]);
-			await client.query("UPDATE media_images SET deleted_at = clock_timestamp() WHERE uploader_user_id = $1 AND purpose = 'avatar' AND deleted_at IS NULL", [userId]);
+			await client.query(`INSERT INTO runline_user_profiles (user_id, nickname)
+				SELECT id, '러너 ' || left(id::text, 8) FROM runline_users WHERE id = $1
+				ON CONFLICT (user_id) DO NOTHING`, [userId]);
+			if (fields.nickname !== undefined) {
+				await client.query("UPDATE runline_user_profiles SET nickname = $2 WHERE user_id = $1", [userId, fields.nickname]);
+			}
+			if ("avatar_url" in fields) {
+				await client.query("UPDATE media_images SET deleted_at = clock_timestamp() WHERE uploader_user_id = $1 AND purpose = 'avatar' AND deleted_at IS NULL", [userId]);
+				await client.query("UPDATE runline_user_profiles SET avatar_url = $2 WHERE user_id = $1", [userId, fields.avatar_url]);
+			}
 		}
-		if (fields) await updateRow(client, "runline_users", userId, fields);
-		const { rows } = await client.query("SELECT id, nickname, avatar_url FROM runline_users WHERE id = $1", [userId]);
+		const { rows } = await client.query(`SELECT u.id, ${profileNicknameSql} AS nickname, profile.avatar_url
+			FROM runline_users u LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id WHERE u.id = $1`, [userId]);
 		return rows[0];
 	});
 }
@@ -101,9 +111,10 @@ export function listMembers(connection: string, userId: string, clubId: string, 
 		const where = seek(page, params, "m.joined_at", "m.id");
 		params.push(page.limit + 1);
 		const { rows } = await client.query<{ id: string }>(
-			`SELECT m.id, m.user_id, m.role, m.joined_at, u.nickname, u.avatar_url
+			`SELECT m.id, m.user_id, m.role, m.joined_at, ${profileNicknameSql} AS nickname, profile.avatar_url
 			FROM club_memberships m JOIN runline_users u ON u.id = m.user_id
-			WHERE m.club_id = $1 AND m.status = 'active' AND ($2 = '' OR strpos(lower(u.nickname), lower($2)) > 0)
+			LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id
+			WHERE m.club_id = $1 AND m.status = 'active' AND ($2 = '' OR strpos(lower(${profileNicknameSql}), lower($2)) > 0)
 			${where} ORDER BY m.joined_at DESC, m.id DESC LIMIT $${params.length}`, params,
 		);
 		return pageResult(rows, page, `members:${clubId}:${encodeURIComponent(query)}`, "joined_at");

@@ -1,3 +1,5 @@
+import 'support/test_runline_auth.dart';
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -9,9 +11,28 @@ import 'package:runline/shared/media/runline_api.dart';
 
 void main() {
   test(
+    'preserves signed feed image URLs when a thumbnail is requested',
+    () async {
+      final api = RunlineApi(
+        session: TestRunlineAuth()..setAccessToken('token'),
+        baseUri: Uri.parse('https://api.example.com'),
+        client: MockClient((request) async {
+          expect(request.url.query, 'expires=123&signature=signed');
+          expect(request.followRedirects, isFalse);
+          return http.Response.bytes([1], 200);
+        }),
+      );
+      await api.imageBytes(
+        '/api/v1/feed/media/image?expires=123&signature=signed',
+        thumbnail: true,
+      );
+    },
+  );
+
+  test(
     'all target uploads use authenticated multipart with optimized image bytes',
     () async {
-      final session = RunlineSession()..setAccessToken('test-runline-token');
+      final session = TestRunlineAuth()..setAccessToken('test-runline-token');
       final paths = <String>[];
       final client = MockClient((request) async {
         paths.add(request.url.path);
@@ -46,7 +67,7 @@ void main() {
         '/me/avatar',
         '/clubs/club/image',
         '/clubs/club/notices/notice/attachments',
-        '/feed/posts/post/images',
+        '/feed/media',
       ]) {
         await api.upload(path, image);
       }
@@ -55,7 +76,7 @@ void main() {
   );
 
   test('web-compatible image fetching carries auth in headers and chooses thumbnails', () async {
-    final session = RunlineSession()..setAccessToken('token');
+    final session = TestRunlineAuth()..setAccessToken('token');
     final api = RunlineApi(
       session: session,
       baseUri: Uri.parse('https://api.example.com'),
@@ -76,7 +97,7 @@ void main() {
     () async {
       var requests = 0;
       final api = RunlineApi(
-        session: RunlineSession(),
+        session: TestRunlineAuth(),
         baseUri: Uri.parse('https://api.example.com'),
         client: MockClient((_) async {
           requests++;

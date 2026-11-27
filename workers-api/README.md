@@ -2,7 +2,8 @@
 
 클럽 탐색·즉시 가입·생성, 멤버 관리, 공지·첨부파일,
 클럽 러닝, 홈 통합 피드와 공통 이미지 업로드를 제공합니다. Flutter 사진 선택·압축·게시·조회도 연결했습니다.
-로그인 화면은 기존 앱에 아직 없으므로 로그인 성공 시 발급받은 RUNLINE 토큰을 Flutter `RunlineSession`에 전달해야 합니다.
+기존 로그인·피드 기능을 유지하며 클럽·채팅도 Flutter `RunlineAuth` 세션을 공유합니다.
+[main 통합과 DB 적용 안내](docs/merge-integration.md)를 먼저 확인하세요.
 클럽 공용 채팅의 저장·인증·재접속 정책과 실행 방법은 [채팅 안내](docs/chat.md)를 참고하세요.
 
 ## 실행 및 DB 반영
@@ -34,7 +35,7 @@ npm run db:migrate -- --baseline-auth
 동시 실행은 DB 잠금으로 방지합니다. 실패 시 해당 실행 전체를 롤백합니다.
 각 SQL 파일은 독립적으로 직접 실행할 수도 있지만, 추후 이력 관리를 위해 스크립트를 권장합니다.
 이 구현 작업에서는 원격 DB 마이그레이션이나 배포를 실행하지 않았습니다.
-`003_images.sql`은 이미지·피드, `004_chat.sql`은 클럽 채팅에 필요합니다.
+`003_images.sql`은 클럽 이미지, `004_chat.sql`은 클럽 채팅, `007_club_profiles.sql`은 프로필 통합에 필요합니다. main의 프로필·피드·팔로우·러닝 SQL도 모두 적용해야 합니다.
 
 운영 이미지 저장에는 비공개 R2 버킷 `runline-media`와 Images 바인딩이 필요합니다.
 `wrangler.jsonc`에 `MEDIA_BUCKET`, `IMAGES`와 삭제된 이미지의 일일 정리 트리거를 설정했습니다.

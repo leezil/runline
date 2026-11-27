@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { URL as NodeURL } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import sharp from "sharp";
@@ -6,7 +6,7 @@ import type { Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { issueTokens } from "../../src/features/auth/tokens";
 import type { WorkerBindings } from "../../src/types";
-import worker from "../../src/index";
+import { app as worker } from "../../src/index";
 import { stripWebpMetadata } from "../../src/features/media/image-pipeline";
 import { cleanupImages } from "../../src/features/media/image-service";
 
@@ -64,6 +64,7 @@ async function uploadImage(user: User, path: string, bytes: Uint8Array, type = "
 
 async function account(number: number, nickname: string): Promise<User> {
 	const { rows } = await db.query<{ id: string }>("INSERT INTO runline_users (kakao_user_id, nickname) VALUES ($1, $2) RETURNING id", [number, nickname]);
+	await db.query("INSERT INTO runline_user_profiles (user_id, nickname) VALUES ($1, $2)", [rows[0].id, nickname]);
 	const tokens = await issueTokens();
 	await db.query(`INSERT INTO runline_sessions (user_id, access_token_hash, refresh_token_hash, access_expires_at, refresh_expires_at)
 		VALUES ($1, $2, $3, now() + interval '1 hour', now() + interval '1 day')`, [rows[0].id, tokens.hashes.accessHash, tokens.hashes.refreshHash]);
@@ -107,7 +108,7 @@ function runBody(overrides: Record<string, unknown> = {}) {
 
 beforeAll(async () => {
 	db = await PGlite.create();
-	for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql", "004_chat.sql"]) {
+	for (const name of (await readdir(new NodeURL("../../migrations/", import.meta.url))).filter((name) => name.endsWith(".sql")).sort()) {
 		await db.exec(await readFile(new NodeURL(`../../migrations/${name}`, import.meta.url), "utf8"));
 	}
 	let queue = Promise.resolve();
@@ -240,21 +241,39 @@ describe("shared image pipeline", () => {
 		expect((await request(owner, image.url.replace("/api/v1", ""))).status).toBe(404);
 	});
 
-	it("uploads feed photos, enforces authorship, shows thumbnails and invalidates deleted posts", async () => {
-		const { post } = await call(owner, "/feed/posts", "POST", { title: "러닝 사진", content: "5km 완료" }, 201);
-		const source = await sharp({ create: { width: 80, height: 40, channels: 3, background: "green" } }).png().toBuffer();
-		expect((await uploadImage(member, `/feed/posts/${post.id}/images`, source)).status).toBe(403);
-		const result = await uploadImage(owner, `/feed/posts/${post.id}/images`, source);
-		expect(result.status).toBe(201);
-		const { image } = await result.json() as any;
-		expect((await call(member, "/feed/posts")).items[0].images[0].id).toBe(image.id);
-		expect((await request(member, image.url.replace("/api/v1", ""))).status).toBe(200);
+	it("keeps the main feed contract and profile alongside club features", async () => {
+		await joinedClub();
+		const { post } = await call(owner, "/feed/posts", "POST", { body: "5km 완료" }, 201);
+		expect(post).toMatchObject({ body: "5km 완료", author: { id: owner.id, nickname: "클럽장" }, media: [] });
+		expect((await call(member, "/feed/recommended")).posts[0].id).toBe(post.id);
+		expect((await call(member, `/feed/posts/${post.id}`)).post.id).toBe(post.id);
+		expect((await request(owner, "/feed/posts", "POST", { title: "old payload", content: "legacy" })).status).toBe(400);
 		expect((await request(member, `/feed/posts/${post.id}`, "DELETE")).status).toBe(403);
 		expect((await request(owner, `/feed/posts/${post.id}`, "DELETE")).status).toBe(204);
-		expect((await request(owner, image.url.replace("/api/v1", ""))).status).toBe(404);
+		expect((await request(owner, `/feed/posts/${post.id}`)).status).toBe(404);
 	});
 });
 afterAll(async () => { await db?.close(); });
+
+it("shares main profile updates with feed authors, club members and notices", async () => {
+	const { club } = await joinedClub();
+	await call(owner, "/me/profile", "PATCH", { nickname: "통합 프로필" });
+	expect((await call(owner, "/me")).profile.nickname).toBe("통합 프로필");
+	expect((await call(member, `/clubs/${club.id}/members?query=통합`)).items[0].nickname).toBe("통합 프로필");
+	const { notice } = await call(owner, `/clubs/${club.id}/notices`, "POST", { title: "공지", content: "모임 안내" }, 201);
+	expect((await call(member, `/clubs/${club.id}/notices/${notice.id}`)).notice.author_nickname).toBe("통합 프로필");
+	const { post } = await call(owner, "/feed/posts", "POST", { body: "러닝 완료" }, 201);
+	expect(post.author.nickname).toBe("통합 프로필");
+});
+
+it("imports legacy club profiles without replacing main profiles", async () => {
+	await db.query("UPDATE runline_users SET nickname = '예전 닉네임' WHERE id = $1", [owner.id]);
+	await db.query("DELETE FROM runline_user_profiles WHERE user_id = $1", [member.id]);
+	await db.query("UPDATE runline_users SET nickname = '클럽 프로필' WHERE id = $1", [member.id]);
+	await db.exec(await readFile(new NodeURL("../../migrations/007_club_profiles.sql", import.meta.url), "utf8"));
+	expect((await call(owner, "/me/profile")).profile.nickname).toBe("클럽장");
+	expect((await call(member, "/me")).profile.nickname).toBe("클럽 프로필");
+});
 
 describe("discovery, membership and management", () => {
 	it("authenticates every club area before accessing data", async () => {

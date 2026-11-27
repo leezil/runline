@@ -89,7 +89,7 @@ void main() {
         addTearDown(drawing.dispose);
         final snapshot = drawing.snapshot()!;
         final api = RouteApi(
-          config: const RouteApiConfig(token: 'test-placeholder'),
+          config: const RouteApiConfig(baseUrl: 'https://route.example', token: 'test-placeholder'),
           client: MockClient((request) async {
             expect(request.method, 'POST');
             expect(request.url.path, '/v1/routes');

@@ -77,7 +77,7 @@ Flutter는 로그아웃·계정 전환·권한 상실 시 소켓과 화면의 �
 인증 성공: `{ "type": "ready", "state": { ... }, "expiresAt": 1234567890000 }`
 
 access token은 기존 정책대로 15분 유효합니다. 만료된 연결은 종료합니다.
-로그인·갱신 흐름에서 새 토큰을 `RunlineSession.instance.setAccessToken(...)`에 공급하면 재연결합니다.
+기존 `RunlineAuth`의 로그인·갱신·로그아웃 변경을 구독합니다. WebSocket 연결 전에도 같은 세션을 복원·갱신하고, 토큰이 바뀌면 재연결합니다.
 refresh token은 소켓으로 보내지 않습니다. 기존 앱에 로그인 화면이 없는 점은 동일합니다.
 
 메시지 전송:
@@ -119,12 +119,12 @@ npm run cf-typegen
 npm run dev:neon
 ```
 
-`004_chat.sql`이 필요합니다. 기존 수동 적용 DB의 이력 등록은 [실행 안내](../README.md)를 따릅니다.
+`004_chat.sql`과 프로필 통합을 위한 `007_club_profiles.sql`을 포함한 전체 SQL이 필요합니다. 기존 수동 적용 DB의 이력 등록은 [실행 안내](../README.md)를 따릅니다.
 진입점 `src/worker.ts`는 `ClubChat` 클래스를 export합니다.
 Wrangler에 Durable Object 바인딩과 `v1-club-chat` 마이그레이션을 추가했습니다.
 원격 SQL 마이그레이션·배포는 이번 구현에서 실행하지 않았습니다.
 
-웹 실행 origin은 `CHAT_ALLOWED_ORIGINS`와 HTTP API의 `ADMIN_WEB_ORIGIN` 모두에 맞춰야 합니다.
+웹 실행 origin은 `CHAT_ALLOWED_ORIGINS`와 HTTP API의 `RUNLINE_WEB_ORIGIN` 모두에 맞춰야 합니다.
 Flutter 개발 서버가 `http://localhost:5000`이면 두 설정에 해당 origin을 사용합니다. 운영은 실제 HTTPS 앱 origin을 사용합니다.
 
 ```powershell

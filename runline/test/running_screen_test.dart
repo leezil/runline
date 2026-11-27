@@ -4,14 +4,93 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 import 'package:runline/app/kakao_map_bootstrap.dart';
 import 'package:runline/features/running/running_screen.dart';
+import 'package:runline/features/running/running_map_sheet.dart';
 import 'package:runline/features/running/running_timer.dart';
 import 'package:runline/features/running/running_goal.dart';
 import 'package:runline/main.dart';
 import 'package:runline/shared/widgets/runline_map_view.dart';
 
 import 'fake_running_location.dart';
+import 'fake_running_history.dart';
+
+import 'package:runline/features/running/running_location.dart';
 
 void main() {
+  testWidgets(
+    'Android keeps one GPS stream across screen lock and saves background points',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 740);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final history = FakeRunningHistory();
+      final gps = FakeRunningLocation();
+      var elapsed = Duration.zero;
+      late RunningTimer timer;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RunningScreen(
+            location: gps,
+            history: history,
+            createTimer: () => timer = RunningTimer(now: () => elapsed),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(gps.subscriptions, 1);
+      final now = DateTime.now();
+      gps.controller.add(
+        GpsPoint(37.28, 127.01, 3, now.subtract(const Duration(seconds: 5))),
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      elapsed = const Duration(seconds: 5);
+      gps.controller.add(GpsPoint(37.2801, 127.01, 3, now));
+      await tester.pump(const Duration(seconds: 5));
+      expect(timer.status, RunningStatus.running);
+      expect(history.records.values.single.points.length, 2);
+      expect(history.records.values.single.activeTime, elapsed);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(gps.subscriptions, 1);
+      expect(gps.cancellations, 0);
+      final handle = find.byKey(const Key('running-sheet-handle'));
+      expect(find.text('종료').hitTestable(), findsOneWidget);
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+      expect(find.text('종료'), findsNothing);
+      final finish = find.byTooltip('종료');
+      final rowCenter = tester.getCenter(finish).dy;
+      expect(tester.getCenter(find.byTooltip('일시정지')).dy, rowCenter);
+      for (final label in ['거리', '시간', '평균 페이스']) {
+        expect(find.text(label).hitTestable(), findsOneWidget);
+        expect(
+          tester
+              .getRect(finish)
+              .contains(
+                Offset(
+                  tester.getCenter(finish).dx,
+                  tester.getCenter(find.text(label)).dy,
+                ),
+              ),
+          isTrue,
+        );
+      }
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('종료'), findsNothing);
+      expect(find.text('종료').hitTestable(), findsOneWidget);
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+      await tester.tap(finish);
+      await tester.pumpAndSettle();
+      expect(gps.cancellations, 1);
+      expect(history.records.values.single.isFinished, true);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
   for (final goal in [
     const RunningGoal.distance(7),
     const RunningGoal.duration(Duration(minutes: 5)),
@@ -45,6 +124,31 @@ void main() {
         RunningStatus.running,
         reason: tester.widget<Text>(find.byKey(const Key('gps-status'))).data,
       );
+      final map = find.byType(RunlineMapView);
+      final handle = find.byKey(const Key('running-sheet-handle'));
+      final expandedMapHeight = tester.getSize(map).height;
+      expect(find.text('BPM').hitTestable(), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(RunningMapSheet),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
+      await tester.drag(handle, const Offset(0, 250));
+      await tester.pumpAndSettle();
+      final compactMapHeight = tester.getSize(map).height;
+      expect(compactMapHeight, greaterThan(520));
+      expect(compactMapHeight, greaterThan(expandedMapHeight));
+      expect(tester.getSize(map).width, 320);
+      for (final label in ['거리', '시간', '평균 페이스']) {
+        expect(find.text(label).hitTestable(), findsOneWidget);
+      }
+      expect(find.text('BPM').hitTestable(), findsNothing);
+      await tester.drag(handle, const Offset(0, -250));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(map).height, lessThan(compactMapHeight));
+      expect(find.text('BPM').hitTestable(), findsOneWidget);
       await tester.drag(find.byType(PageView), const Offset(-300, 0));
       await tester.pumpAndSettle();
       expect(find.text('구간 페이스'), findsOneWidget);
@@ -100,12 +204,43 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+    final map = find.byType(RunlineMapView);
+    final handle = find.byKey(const Key('running-sheet-handle'));
+    final expandedMapHeight = tester.getSize(map).height;
+    for (final label in ['거리', '시간', '평균 페이스', '칼로리', '고도', 'BPM']) {
+      expect(find.text(label).hitTestable(), findsOneWidget);
+    }
+    expect(find.byKey(const Key('running-goal-label')), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(RunningMapSheet),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
+    );
+    await tester.tap(find.byTooltip('구간'));
+    await tester.pumpAndSettle();
+    expect(find.text('구간 페이스').hitTestable(), findsOneWidget);
+    await tester.tap(find.byTooltip('러닝'));
+    await tester.pumpAndSettle();
+    expect(map.hitTestable(), findsOneWidget);
+    await tester.tap(handle);
+    await tester.pumpAndSettle();
+    final compactMapHeight = tester.getSize(map).height;
+    expect(compactMapHeight, greaterThan(expandedMapHeight));
+    expect(find.text('BPM'), findsNothing);
+    await tester.tap(handle);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('gps-status')).hitTestable(), findsOneWidget);
+    expect(tester.getSize(map).height, expandedMapHeight);
+
     await tester.tap(find.text('종료'));
     await tester.runAsync(() async {
       await Future<void>.delayed(Duration.zero);
     });
     await tester.pumpAndSettle();
     expect(find.text('러닝 결과'), findsOneWidget);
+    expect(tester.getSize(map).height, greaterThan(expandedMapHeight));
     await tester.tap(find.text('확인'));
     await tester.pumpAndSettle();
     expect(find.byType(RunningScreen), findsNothing);

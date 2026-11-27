@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_spacing.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/icon_label_action.dart';
-import '../../shared/media/image_compose_screen.dart';
+import '../../shared/media/club_image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
 import 'club_notices_screen.dart';
@@ -29,13 +29,13 @@ class _ClubScreenState extends State<ClubScreen> {
   @override
   void initState() {
     super.initState();
-    RunlineSession.instance.addListener(_refresh);
+    RunlineApi.instance.session.addListener(_refresh);
     _load();
   }
 
   @override
   void dispose() {
-    RunlineSession.instance.removeListener(_refresh);
+    RunlineApi.instance.session.removeListener(_refresh);
     super.dispose();
   }
 
@@ -53,7 +53,7 @@ class _ClubScreenState extends State<ClubScreen> {
       _owner = false;
       _unreadChat = 0;
     }
-    if (!RunlineSession.instance.isSignedIn) {
+    if (!RunlineApi.instance.session.isSignedIn) {
       if (mounted) {
         setState(() {
           _error = null;
@@ -213,8 +213,8 @@ class _ClubScreenState extends State<ClubScreen> {
                 onPressed: () async {
                   final saved = await Navigator.of(context).push<bool>(
                     MaterialPageRoute(
-                      builder: (_) => const ImageComposeScreen(
-                        kind: ImageComposeKind.clubCreate,
+                      builder: (_) => const ClubImageComposeScreen(
+                        kind: ClubImageComposeKind.clubCreate,
                       ),
                     ),
                   );
@@ -229,7 +229,7 @@ class _ClubScreenState extends State<ClubScreen> {
                 onPressed: () async {
                   await openClubImageComposer(
                     context,
-                    ImageComposeKind.clubCover,
+                    ClubImageComposeKind.clubCover,
                   );
                   if (mounted) await _load();
                 },
@@ -237,8 +237,11 @@ class _ClubScreenState extends State<ClubScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        if (!RunlineSession.instance.isSignedIn) const Text('로그인 후 클럽을 찾아보세요.'),
-        if (RunlineSession.instance.isSignedIn && _club == null && !_loading)
+        if (!RunlineApi.instance.session.isSignedIn)
+          const Text('로그인 후 클럽을 찾아보세요.'),
+        if (RunlineApi.instance.session.isSignedIn &&
+            _club == null &&
+            !_loading)
           Text(
             _query.isEmpty ? '클럽에 가입하고 함께 달려보세요.\n추천 클럽' : '“$_query” 검색 결과',
           ),

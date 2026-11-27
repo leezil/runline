@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'image_compose_screen.dart';
+import 'club_image_compose_screen.dart';
 import 'runline_api.dart';
 import 'runline_image.dart';
 
@@ -15,12 +15,12 @@ class _ProfileAvatarButtonState extends State<ProfileAvatarButton> {
   @override
   void initState() {
     super.initState();
-    RunlineSession.instance.addListener(_refresh);
+    RunlineApi.instance.session.addListener(_refresh);
     _load();
   }
 
   void _load() {
-    _profile = RunlineSession.instance.isSignedIn
+    _profile = RunlineApi.instance.session.isSignedIn
         ? RunlineApi.instance.json('/me/profile')
         : null;
   }
@@ -31,7 +31,7 @@ class _ProfileAvatarButtonState extends State<ProfileAvatarButton> {
 
   @override
   void dispose() {
-    RunlineSession.instance.removeListener(_refresh);
+    RunlineApi.instance.session.removeListener(_refresh);
     super.dispose();
   }
 
@@ -42,7 +42,7 @@ class _ProfileAvatarButtonState extends State<ProfileAvatarButton> {
       final result = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) =>
-              const ImageComposeScreen(kind: ImageComposeKind.avatar),
+              const ClubImageComposeScreen(kind: ClubImageComposeKind.avatar),
         ),
       );
       if (result == true && mounted) _refresh();

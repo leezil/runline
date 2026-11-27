@@ -24,14 +24,17 @@ async function json(c: Context<AuthEnv>) {
 }
 
 for (const routes of [clubRoutes, meRoutes]) {
-	routes.use("*", requireAuth);
-	routes.use("*", async (c, next) => {
-		const upload = c.req.method === "POST" && /\/notices\/[^/]+\/attachments$/.test(c.req.path);
-		return bodyLimit({
-			maxSize: upload ? 5 * 1024 * 1024 + 8192 : 100 * 1024,
-			onError: (ctx) => ctx.json({ ok: false, error: { code: "PAYLOAD_TOO_LARGE", message: "Request body is too large" } }, 413),
-		})(c, next);
-	});
+	const paths = routes === clubRoutes ? ["*"] : ["/club", "/profile"];
+	for (const path of paths) {
+		routes.use(path, requireAuth);
+		routes.use(path, async (c, next) => {
+			const upload = c.req.method === "POST" && /\/notices\/[^/]+\/attachments$/.test(c.req.path);
+			return bodyLimit({
+				maxSize: upload ? 5 * 1024 * 1024 + 8192 : 100 * 1024,
+				onError: (ctx) => ctx.json({ ok: false, error: { code: "PAYLOAD_TOO_LARGE", message: "Request body is too large" } }, 413),
+			})(c, next);
+		});
+	}
 }
 
 meRoutes.get("/club", async (c) => c.json({ ok: true, ...await clubs.myClub(connection(c), user(c)) }));

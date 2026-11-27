@@ -138,18 +138,21 @@ class ClubChatController extends ChangeNotifier {
   Future<void> connect() async {
     if (_disposed || _paused) return;
     _stop();
-    if (!api.session.isSignedIn) {
-      _clear();
-      connection = ChatConnectionState.authRequired;
-      error = '로그인 후 채팅을 이용해주세요.';
-      _notify();
-      return;
-    }
     final generation = _generation;
     connection = ChatConnectionState.connecting;
     error = null;
     _notify();
     try {
+      // Restore/refresh the same session used by the login and feed screens.
+      final signedIn = await api.session.hasSession();
+      if (_disposed || generation != _generation) return;
+      if (!signedIn) {
+        _clear();
+        connection = ChatConnectionState.authRequired;
+        error = '로그인 후 채팅을 이용해주세요.';
+        _notify();
+        return;
+      }
       final endpoint = api.endpoint('/api/v1/clubs/$clubId/chat/socket');
       final channel = _channelFactory(
         endpoint.replace(scheme: endpoint.scheme == 'https' ? 'wss' : 'ws'),

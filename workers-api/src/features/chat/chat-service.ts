@@ -1,3 +1,4 @@
+import { profileNicknameSql } from "../profile/profile-nickname";
 import type { Client } from "pg";
 import { AuthError } from "../auth/errors";
 import { ClubError, invalid } from "../clubs/errors";
@@ -52,9 +53,10 @@ export function getChatState(connection: string, userId: string, clubId: string)
 	return inClub(connection, userId, clubId, false, ({ client, membership }) => chatState(client, membership));
 }
 
-const selectMessage = `SELECT msg.*, m.user_id AS sender_user_id, u.nickname, u.avatar_url
+const selectMessage = `SELECT msg.*, m.user_id AS sender_user_id, ${profileNicknameSql} AS nickname, profile.avatar_url
 	FROM club_chat_messages msg JOIN club_memberships m ON m.id = msg.sender_membership_id
-	JOIN runline_users u ON u.id = m.user_id`;
+	JOIN runline_users u ON u.id = m.user_id
+	LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id`;
 
 export function history(connection: string, userId: string, clubId: string, query: Record<string, string>) {
 	if (query.before !== undefined && query.after !== undefined) invalid("Use before or after, not both");

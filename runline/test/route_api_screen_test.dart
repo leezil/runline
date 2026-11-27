@@ -197,21 +197,13 @@ void main() {
       expect(service.calls, 0);
       expect(find.textContaining('직접 입력해주세요.'), findsOneWidget);
       await enter('target-distance', '5.125');
-      await tester.ensureVisible(find.text('세부 탐색 설정'));
-      await tester.tap(find.text('세부 탐색 설정'));
+      final wide = find.widgetWithText(ChoiceChip, '넓게');
+      await tester.ensureVisible(wide);
+      await tester.tap(wide);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('search-radius_m')));
-      await tester.enterText(
-        find.byKey(const ValueKey('search-radius_m')),
-        '3000',
-      );
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('search-search_seconds')),
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('search-search_seconds')),
-        '15',
-      );
+      expect(find.text('세부 탐색 설정'), findsNothing);
+      expect(find.textContaining('1.5 km 이내'), findsOneWidget);
+      expect(find.textContaining('3.59~6.66 km'), findsOneWidget);
       await submit();
       expect(service.calls, 0);
       expect(find.textContaining('현재 위치를 선택하거나'), findsOneWidget);
@@ -239,8 +231,10 @@ void main() {
       expect(service.request!.input.maxDistanceKm, 8);
       expect(service.request!.input.drawing, same(input.drawing));
       expect(service.request!.toJson()['distance_m'], 5125);
-      expect(service.request!.toJson()['radius_m'], 3000);
-      expect(service.request!.toJson()['search_seconds'], 15);
+      expect(service.request!.toJson()['radius_m'], 2500);
+      expect(service.request!.toJson()['approach_m'], 1500);
+      expect(service.request!.toJson()['tolerance'], .3);
+      expect(service.request!.toJson()['search_seconds'], 45);
       expect(tester.widget<FilledButton>(generate).onPressed, isNull);
       await submit();
       expect(service.calls, 1);

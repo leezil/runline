@@ -1,3 +1,5 @@
+import 'support/test_runline_auth.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -108,11 +110,33 @@ Future<void> settle() async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('restores the login session before authenticating the socket', () async {
+    final socket = FakeSocket();
+    final session = RestoringAuth();
+    final controller = ClubChatController(
+      clubId: 'club',
+      api: RunlineApi(
+        session: session,
+        baseUri: Uri.parse('https://api.example.com'),
+        client: MockClient((_) async => history([], 0)),
+      ),
+      channelFactory: (_) => socket,
+    );
+    addTearDown(controller.dispose);
+    await controller.connect();
+    await settle();
+    expect(session.isSignedIn, isTrue);
+    expect(socket.sent.single, {
+      'type': 'auth',
+      'accessToken': 'restored-token',
+    });
+  });
+
   test(
     'authenticates without URL tokens and orders history by server sequence',
     () async {
       final socket = FakeSocket();
-      final session = RunlineSession()..setAccessToken('rla_${'a' * 64}');
+      final session = TestRunlineAuth()..setAccessToken('rla_${'a' * 64}');
       final api = RunlineApi(
         session: session,
         baseUri: Uri.parse('https://api.example.com'),
@@ -145,7 +169,7 @@ void main() {
   test('keeps outgoing messages pending until committed ack and retries using the same ID', () async {
     final socket = FakeSocket();
     final api = RunlineApi(
-      session: RunlineSession()..setAccessToken('token'),
+      session: TestRunlineAuth()..setAccessToken('token'),
       baseUri: Uri.parse('https://api.example.com'),
       client: MockClient((_) async => history([], 0)),
     );
@@ -195,7 +219,7 @@ void main() {
     final socket = FakeSocket();
     final requests = <String>[];
     final api = RunlineApi(
-      session: RunlineSession()..setAccessToken('token'),
+      session: TestRunlineAuth()..setAccessToken('token'),
       baseUri: Uri.parse('https://api.example.com'),
       client: MockClient((request) async {
         requests.add(request.url.query);
@@ -225,7 +249,7 @@ void main() {
     () async {
       final socket = FakeSocket();
       final response = Completer<http.Response>();
-      final session = RunlineSession()..setAccessToken('token');
+      final session = TestRunlineAuth()..setAccessToken('token');
       final api = RunlineApi(
         session: session,
         baseUri: Uri.parse('https://api.example.com'),
@@ -257,7 +281,7 @@ void main() {
       final socket = FakeSocket();
       var connections = 0;
       final api = RunlineApi(
-        session: RunlineSession()..setAccessToken('token'),
+        session: TestRunlineAuth()..setAccessToken('token'),
         baseUri: Uri.parse('https://api.example.com'),
         client: MockClient((_) async => history([message(1)], 1)),
       );
@@ -292,7 +316,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final socket = FakeSocket();
     final api = RunlineApi(
-      session: RunlineSession()..setAccessToken('token'),
+      session: TestRunlineAuth()..setAccessToken('token'),
       baseUri: Uri.parse('https://api.example.com'),
       client: MockClient(
         (_) async => history([message(1, content: '함께 달려요')], 1),
@@ -323,4 +347,17 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   });
+}
+
+class RestoringAuth extends TestRunlineAuth {
+  bool _restored = false;
+  @override
+  Future<bool> hasSession() async {
+    if (!_restored) {
+      _restored = true;
+      await Future<void>.delayed(Duration.zero);
+      setAccessToken('restored-token');
+    }
+    return isSignedIn;
+  }
 }

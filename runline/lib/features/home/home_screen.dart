@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
+import '../settings/settings_screen.dart';
 import '../../shared/widgets/app_card.dart';
-import '../../shared/media/profile_avatar_button.dart';
 import '../route_drawing/route_drawing_screen.dart';
 import '../running/running_screen.dart';
 import '../running/running_goal.dart';
@@ -85,7 +85,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Text('좋은 아침이에요, 러너!', style: textTheme.headlineMedium),
               ),
-              const ProfileAvatarButton(),
+              IconButton(
+                tooltip: '설정',
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
+                icon: const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Color(0xFFE6E9FF),
+                  child: Icon(Icons.person_outline, color: AppColors.primary),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),

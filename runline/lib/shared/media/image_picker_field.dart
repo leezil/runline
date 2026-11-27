@@ -98,7 +98,8 @@ class _UploadImagePickerState extends State<UploadImagePicker> {
                     child: IconButton.filledTonal(
                       tooltip: '사진 삭제',
                       icon: const Icon(Icons.close, size: 16),
-                      onPressed: !widget.enabled || _busy || i < widget.lockedCount
+                      onPressed:
+                          !widget.enabled || _busy || i < widget.lockedCount
                           ? null
                           : () {
                               final images = [...widget.images]..removeAt(i);

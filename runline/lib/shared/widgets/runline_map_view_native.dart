@@ -1,8 +1,41 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 
 import '../../app/kakao_map_bootstrap.dart';
 import 'running_map_data.dart';
+import '../../features/facilities/facility.dart';
+
+Future<FacilityBounds?> androidMapBounds(
+  Size logicalSize,
+  double pixelRatio,
+  Future<LatLng?> Function(int, int) project,
+) async {
+  // Android's map projection takes pixels relative to the native map view.
+  final width = (logicalSize.width * pixelRatio).round();
+  final height = (logicalSize.height * pixelRatio).round();
+  if (width < 2 || height < 2) return null;
+  final corners = await Future.wait([
+    project(0, 0),
+    project(width - 1, 0),
+    project(0, height - 1),
+    project(width - 1, height - 1),
+  ]);
+  final points = corners.whereType<LatLng>().toList();
+  if (points.length != 4) return null;
+  final lng = points.map((p) => p.longitude);
+  final lat = points.map((p) => p.latitude);
+  final bounds = FacilityBounds(
+    lng.reduce(math.min),
+    lat.reduce(math.min),
+    lng.reduce(math.max),
+    lat.reduce(math.max),
+  );
+  return bounds.west < bounds.east && bounds.south < bounds.north
+      ? bounds
+      : null;
+}
 
 class RunlineMapView extends StatefulWidget {
   const RunlineMapView({
@@ -19,6 +52,9 @@ class RunlineMapView extends StatefulWidget {
     this.recenterToken = 0,
     this.onUserGesture,
     this.routeRun = false,
+    this.facilities = const [],
+    this.onBoundsChanged,
+    this.onFacilityTap,
   });
   final LatLng initialPosition;
   final int zoomLevel;
@@ -29,6 +65,9 @@ class RunlineMapView extends StatefulWidget {
   final bool followLocation, routeRun;
   final int recenterToken;
   final VoidCallback? onUserGesture;
+  final List<Facility> facilities;
+  final ValueChanged<FacilityBounds>? onBoundsChanged;
+  final ValueChanged<Facility>? onFacilityTap;
   @override
   State<RunlineMapView> createState() => _RunlineMapViewState();
 }
@@ -44,9 +83,15 @@ class _RunlineMapViewState extends State<RunlineMapView> {
   Future<void> _updates = Future.value();
   int _revision = 0, _lastRecenter = -1;
   bool _wasFollowing = false;
+  final _facilityMarkers = <String, Poi>{};
+  final _facilityStyles = <FacilityType, PoiStyle>{};
+  Future<void> _facilityUpdates = Future.value();
+  int _boundsRevision = 0;
+  bool _facilityFailed = false;
   @override
   void didUpdateWidget(covariant RunlineMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.facilities != widget.facilities) _queueFacilities();
     if (oldWidget.routeCoordinates != widget.routeCoordinates) _fitted = false;
     if (oldWidget.routeCoordinates != widget.routeCoordinates ||
         oldWidget.trackSegments != widget.trackSegments ||
@@ -58,6 +103,103 @@ class _RunlineMapViewState extends State<RunlineMapView> {
         oldWidget.recenterToken != widget.recenterToken) {
       _queueUpdate();
     }
+  }
+
+  Future<void> _reportBounds() async {
+    final revision = ++_boundsRevision;
+    final controller = _controller;
+    if (controller == null || widget.onBoundsChanged == null) return;
+    try {
+      final box = context.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final ratio = View.of(context).devicePixelRatio;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        if (!mounted || revision != _boundsRevision) return;
+        final bounds = await androidMapBounds(
+          box.size,
+          ratio,
+          controller.fromScreenPoint,
+        );
+        if (!mounted || revision != _boundsRevision) return;
+        if (bounds != null) {
+          widget.onBoundsChanged?.call(bounds);
+          return;
+        }
+        if (attempt < 4)
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    } catch (_) {
+      // Camera may be unavailable while the native map is being destroyed.
+    }
+  }
+
+  void _queueFacilities() {
+    _facilityUpdates = _facilityUpdates.then((_) async {
+      final controller = _controller;
+      if (!mounted || controller == null) return;
+      final facilities = widget.facilities;
+      try {
+        final ids = facilities.map((f) => f.id).toSet();
+        for (final id in _facilityMarkers.keys.toList()) {
+          if (!ids.contains(id)) await _facilityMarkers.remove(id)!.remove();
+        }
+        for (final facility in facilities) {
+          if (!mounted) return;
+          final existing = _facilityMarkers[facility.id];
+          if (existing != null) {
+            if (existing.position != facility.position) {
+              await existing.move(facility.position);
+            }
+            continue;
+          }
+          var style = _facilityStyles[facility.type];
+          if (style == null) {
+            final icon = await KImage.fromWidget(
+              Container(
+                decoration: BoxDecoration(
+                  color: facility.type == FacilityType.toilet
+                      ? Colors.teal
+                      : Colors.deepPurple,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Icon(
+                  facility.type == FacilityType.toilet
+                      ? Icons.wc
+                      : Icons.videocam,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const Size(32, 32),
+              pixelRatio: 2,
+            );
+            style = PoiStyle(icon: icon);
+            _facilityStyles[facility.type] = style;
+          }
+          if (!mounted) return;
+          final poi = await controller.labelLayer.addPoi(
+            facility.position,
+            style: style,
+            onClick: () {
+              if (!mounted) return;
+              final current = widget.facilities
+                  .where((f) => f.id == facility.id)
+                  .firstOrNull;
+              if (current != null) widget.onFacilityTap?.call(current);
+            },
+          );
+          if (!mounted) {
+            await poi.remove();
+            return;
+          }
+          _facilityMarkers[facility.id] = poi;
+        }
+        if (mounted && _facilityFailed) setState(() => _facilityFailed = false);
+      } catch (_) {
+        if (mounted) setState(() => _facilityFailed = true);
+      }
+    });
   }
 
   void _queueUpdate() {
@@ -176,25 +318,36 @@ class _RunlineMapViewState extends State<RunlineMapView> {
           onCameraMoveStart: (gesture) {
             if (gesture != GestureType.unknown) widget.onUserGesture?.call();
           },
+          onCameraMoveEnd: (_, _) => _reportBounds(),
           onMapReady: (controller) {
             if (!mounted) return;
             _controller = controller;
             _lines.clear();
+            _facilityMarkers.clear();
+            _facilityStyles.clear();
             _marker = null;
             _fitted = false;
             setState(() => _ready = true);
             _queueUpdate();
+            _queueFacilities();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _reportBounds();
+            });
           },
           onMapError: (_) {
             if (mounted) setState(() => _mapFailed = true);
           },
         ),
-        if (_routeFailed)
-          const Align(
+        if (_routeFailed || _facilityFailed)
+          Align(
             alignment: Alignment.bottomCenter,
             child: ColoredBox(
               color: Colors.white,
-              child: _MapMessage(message: '위치·경로를 지도에 표시하지 못했습니다.'),
+              child: _MapMessage(
+                message: _facilityFailed
+                    ? '시설을 지도에 표시하지 못했습니다.'
+                    : '위치·경로를 지도에 표시하지 못했습니다.',
+              ),
             ),
           ),
         if (!_ready)

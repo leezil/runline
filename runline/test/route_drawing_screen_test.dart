@@ -136,6 +136,35 @@ void main() {
     },
   );
 
+  testWidgets('vertical drawing keeps a short screen still', (tester) async {
+    tester.view.physicalSize = const Size(390, 420);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MaterialApp(home: RouteDrawingScreen()));
+
+    final canvas = find.byType(DrawingCanvas);
+    final controller = tester.widget<DrawingCanvas>(canvas).controller;
+    final scroll = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scroll.position.maxScrollExtent, greaterThan(0));
+
+    final center = tester.getCenter(canvas);
+    await tester.dragFrom(center, const Offset(0, -80));
+    await tester.dragFrom(center, const Offset(0, 80));
+    await tester.pumpAndSettle();
+    expect(scroll.position.pixels, 0);
+    final strokes = controller.snapshot()!.strokes;
+    expect(strokes, hasLength(2));
+    expect(strokes.first.last.dy - strokes.first.first.dy, -80);
+    expect(strokes.last.last.dy - strokes.last.first.dy, 80);
+
+    final outside = tester.getBottomLeft(canvas) + const Offset(0, 8);
+    await tester.dragFrom(outside, const Offset(0, -100));
+    await tester.pumpAndSettle();
+    expect(scroll.position.pixels, greaterThan(0));
+    expect(controller.snapshot()!.strokes, strokes);
+  });
+
   for (final kind in [ui.PointerDeviceKind.mouse, ui.PointerDeviceKind.touch]) {
     testWidgets('$kind paints live blue strokes, exports points and clears', (
       tester,

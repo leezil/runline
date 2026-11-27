@@ -1,3 +1,4 @@
+import { profileNicknameSql } from "../profile/profile-nickname";
 import type { Client } from "pg";
 import { ClubError, invalid, missing } from "./errors";
 import { addEvent, inClub, seek, updateRow } from "./repository";
@@ -9,7 +10,7 @@ type Run = {
 	cancelled_at: Date | null; participant_count: number; is_participating: boolean; state: string;
 };
 
-const runSelect = `SELECT r.*, u.nickname AS creator_nickname, u.avatar_url AS creator_avatar_url,
+const runSelect = `SELECT r.*, ${profileNicknameSql} AS creator_nickname, profile.avatar_url AS creator_avatar_url,
 	(SELECT count(*)::int FROM club_run_participants p WHERE p.run_id = r.id AND p.status = 'joined') AS participant_count,
 	EXISTS (SELECT 1 FROM club_run_participants p WHERE p.run_id = r.id AND p.membership_id = $2 AND p.status = 'joined') AS is_participating,
 	CASE WHEN r.cancelled_at IS NOT NULL THEN 'cancelled'
@@ -19,7 +20,8 @@ const runSelect = `SELECT r.*, u.nickname AS creator_nickname, u.avatar_url AS c
 			(SELECT count(*) FROM club_run_participants p WHERE p.run_id = r.id AND p.status = 'joined') >= r.capacity THEN 'closed'
 		ELSE 'recruiting' END AS state
 	FROM club_runs r JOIN club_memberships m ON m.id = r.creator_membership_id
-	JOIN runline_users u ON u.id = m.user_id`;
+	JOIN runline_users u ON u.id = m.user_id
+	LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id`;
 
 async function findRun(client: Client, clubId: string, membershipId: string, runId: string): Promise<Run> {
 	const { rows } = await client.query<Run>(`${runSelect} WHERE r.club_id = $1 AND r.id = $3`, [clubId, membershipId, runId]);
@@ -139,9 +141,10 @@ export function listParticipants(connection: string, userId: string, clubId: str
 		const where = seek(page, params, "p.joined_at", "m.id");
 		params.push(page.limit + 1);
 		const { rows } = await client.query<{ id: string }>(
-			`SELECT m.id, m.user_id, u.nickname, u.avatar_url, p.joined_at
+			`SELECT m.id, m.user_id, ${profileNicknameSql} AS nickname, profile.avatar_url, p.joined_at
 			FROM club_run_participants p JOIN club_memberships m ON m.id = p.membership_id
 			JOIN runline_users u ON u.id = m.user_id
+	LEFT JOIN runline_user_profiles profile ON profile.user_id = u.id
 			WHERE p.club_id = $1 AND p.run_id = $2 AND p.status = 'joined' ${where}
 			ORDER BY p.joined_at DESC, m.id DESC LIMIT $${params.length}`, params,
 		);

@@ -20,7 +20,6 @@ export async function readImageFile(c: Context<AuthEnv>): Promise<File> {
 for (const [path, target] of [
 	["/me/avatar", () => ({ purpose: "avatar" })],
 	["/clubs/:clubId/image", (c: Context<AuthEnv>) => ({ purpose: "club_cover", clubId: uuid(c.req.param("clubId") ?? "") })],
-	["/feed/posts/:postId/images", (c: Context<AuthEnv>) => ({ purpose: "feed", postId: uuid(c.req.param("postId") ?? "") })],
 ] as [string, (c: Context<AuthEnv>) => ImageTarget][]) {
 	imageRoutes.post(path, requireAuth, uploadLimit, async (c) => c.json({ ok: true, ...await uploadImage(c.env, c.get("userId"), target(c), await readImageFile(c)) }, 201));
 }

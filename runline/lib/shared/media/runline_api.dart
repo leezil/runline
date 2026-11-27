@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import '../../features/auth/runline_auth.dart';
 import 'image_optimizer.dart';
 
 class RunlineApiException implements Exception {
@@ -14,35 +15,17 @@ class RunlineApiException implements Exception {
   String toString() => message;
 }
 
-/// The login flow supplies a RUNLINE access token here after Kakao exchange.
-/// Tokens never appear in image URLs, build-time constants or browser storage.
-class RunlineSession extends ChangeNotifier {
-  static final instance = RunlineSession();
-  String? _accessToken;
-  String? get accessToken => _accessToken;
-  bool get isSignedIn => _accessToken?.isNotEmpty == true;
-  void setAccessToken(String? token) {
-    _accessToken = token;
-    notifyListeners();
-  }
-}
-
 class RunlineApi {
-  RunlineApi({http.Client? client, RunlineSession? session, Uri? baseUri})
+  RunlineApi({http.Client? client, RunlineAuth? session, Uri? baseUri})
     : _client = client ?? http.Client(),
-      session = session ?? RunlineSession.instance,
+      session = session ?? RunlineAuth.instance,
       baseUri =
           baseUri ??
-          Uri.parse(
-            const String.fromEnvironment(
-              'RUNLINE_API_BASE_URL',
-              defaultValue: 'http://localhost:8787',
-            ),
-          );
+          Uri.parse(const String.fromEnvironment('RUNLINE_API_ORIGIN'));
 
   static final instance = RunlineApi();
   final http.Client _client;
-  final RunlineSession session;
+  final RunlineAuth session;
   final Uri baseUri;
 
   Uri endpoint(String path) {
@@ -55,18 +38,20 @@ class RunlineApi {
       throw const RunlineApiException('서버 주소를 확인해주세요.');
     }
     final relative = Uri.parse(path);
-    if (relative.hasScheme ||
-        relative.hasAuthority ||
-        !path.startsWith('/api/v1/')) {
+    final uri = baseUri.resolveUri(relative);
+    if (uri.origin != baseUri.origin ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasFragment ||
+        !uri.path.startsWith('/api/v1/')) {
       throw const RunlineApiException('올바르지 않은 이미지 주소예요.');
     }
-    return baseUri.replace(
-      path: '${baseUri.path.replaceFirst(RegExp(r'/+$'), '')}${relative.path}',
-      query: relative.hasQuery ? relative.query : null,
-    );
+    return uri;
   }
 
-  Map<String, String> _headers() {
+  Future<Map<String, String>> _headers() async {
+    if (!await session.hasSession()) {
+      throw const RunlineApiException('로그인 후 이용해주세요.', statusCode: 401);
+    }
     final token = session.accessToken;
     if (token == null || token.isEmpty) {
       throw const RunlineApiException('로그인 후 이용해주세요.', statusCode: 401);
@@ -80,7 +65,8 @@ class RunlineApi {
     Map<String, dynamic>? body,
   }) async {
     final request = http.Request(method, endpoint('/api/v1$path'));
-    request.headers.addAll(_headers());
+    request.followRedirects = false;
+    request.headers.addAll(await _headers());
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
@@ -97,7 +83,8 @@ class RunlineApi {
     OptimizedUploadImage image,
   ) async {
     final request = http.MultipartRequest('POST', endpoint('/api/v1$path'));
-    request.headers.addAll(_headers());
+    request.followRedirects = false;
+    request.headers.addAll(await _headers());
     request.files.add(
       http.MultipartFile.fromBytes(
         'file',
@@ -114,14 +101,17 @@ class RunlineApi {
 
   Future<Uint8List> imageBytes(String path, {bool thumbnail = false}) async {
     var uri = endpoint(path);
-    if (thumbnail) {
+    if (thumbnail && uri.path.startsWith('/api/v1/media/images/')) {
       uri = uri.replace(
         queryParameters: {...uri.queryParameters, 'variant': 'thumbnail'},
       );
     }
-    final response = await _client
-        .get(uri, headers: _headers())
-        .timeout(const Duration(seconds: 30));
+    final request = http.Request('GET', uri);
+    request.followRedirects = false;
+    request.headers.addAll(await _headers());
+    final response = await http.Response.fromStream(
+      await _client.send(request).timeout(const Duration(seconds: 30)),
+    );
     if (response.statusCode != 200) {
       _decode(response);
       throw const RunlineApiException('사진을 불러오지 못했어요.');
@@ -137,7 +127,7 @@ class RunlineApi {
     } catch (_) {
       throw const RunlineApiException('서버 응답을 확인하지 못했어요.');
     }
-    if (response.statusCode >= 400) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = switch (response.statusCode) {
         401 => '로그인 후 이용해주세요.',
         403 => '이 작업을 수행할 권한이 없어요.',

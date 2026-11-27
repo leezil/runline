@@ -1,6 +1,7 @@
 # 공통 이미지 처리
 
-프로필·클럽 대표·클럽 공지·피드 게시물은 모두 같은 이미지 처리 정책을 사용합니다.
+모든 사진은 Flutter의 공통 최적화를 거칩니다. 서버에서는 main의 피드 저장·서명 URL 흐름과 클럽 이미지 변환 흐름을 유지합니다.
+[통합 안내](merge-integration.md)에서 두 경로와 저장소를 확인하세요. 아래 서버 변환·썸네일 설명은 프로필·클럽 대표·공지를 기준으로 합니다.
 
 ## 처리 흐름
 
@@ -30,9 +31,9 @@ Flutter native는 `compute`로 압축을 분리합니다. 웹에서 `compute`는
 | 프로필 | `POST /api/v1/me/avatar` |
 | 클럽 대표 | `POST /api/v1/clubs/:clubId/image` |
 | 클럽 공지 | `POST /api/v1/clubs/:clubId/notices/:noticeId/attachments` |
-| 피드 게시물 | `POST /api/v1/feed/posts/:postId/images` |
+| 피드 게시물 | `POST /api/v1/feed/media` 후 `mediaIds`로 게시글에 첨부 |
 
-프로필과 클럽 대표는 교체하고, 공지·피드는 최대 5개를 추가합니다.
+프로필과 클럽 대표는 교체하고, 공지는 최대 5개를 추가합니다. main 피드는 최대 4개이며 별도의 서명 URL과 FEED_MEDIA 버킷을 사용합니다.
 서버는 변환 전 권한을 검사하고, 저장 직전 트랜잭션에서 권한과 개수를 다시 검사합니다.
 저장 실패 시 생성한 R2 객체를 정리합니다.
 
@@ -58,39 +59,27 @@ Flutter native는 `compute`로 압축을 분리합니다. 웹에서 `compute`는
 삭제·교체된 이미지의 API 접근은 즉시 막고, 일일 작업에서 R2 객체와 DB 메타데이터를 정리합니다.
 
 `DELETE /api/v1/media/images/:imageId`로 이미지를 제거할 수 있습니다.
-클럽 이미지는 현재 클럽장, 프로필과 피드 이미지는 업로더만 삭제할 수 있습니다.
+클럽 이미지는 현재 클럽장, 프로필 이미지는 업로더만 삭제할 수 있습니다. 피드 사진은 main 게시글 수정·삭제 흐름에서 관리합니다.
 공지·피드 삭제와 클럽 폐쇄 시 연결된 이미지도 삭제 상태로 변경합니다.
 
-피드 사진 업로드 대상이 필요하므로 다음 기본 게시물 API도 추가했습니다.
+피드는 main의 기존 API를 사용합니다.
 
-- `POST /api/v1/feed/posts`: `{ "title": "제목", "content": "내용" }` → `201 { post }`
-- `GET /api/v1/feed/posts`: `limit`, `cursor` 지원. 게시물마다 최적화 이미지 메타데이터 포함.
-- `DELETE /api/v1/feed/posts/:postId`: 작성자 전용 삭제.
-
-좋아요·댓글·팔로잉 필터는 이번 이미지 처리 범위에 포함하지 않았습니다.
+- `POST /api/v1/feed/posts`: `{ "body": "내용", "mediaIds": ["업로드 ID"] }`
+- `GET /api/v1/feed/recommended`, `GET /api/v1/feed/following`: 추천·팔로잉 피드
+- `GET/PATCH/DELETE /api/v1/feed/posts/:postId`: 상세·수정·삭제
+- 응답의 `media[].url`은 조회자와 만료 시간에 묶인 서명 URL입니다. 기존 서명 쿼리를 그대로 유지합니다.
 
 ## Flutter 연결
 
-- 홈 프로필 아이콘: 프로필 사진 변경
+- 피드 → 내 프로필 → 사진 변경: 프로필 사진 변경. 홈의 설정 진입은 유지합니다.
 - 미가입 클럽 탭의 만들기: 대표 사진을 포함한 클럽 생성
 - 클럽장 클럽 탭의 사진 아이콘: 대표 사진 변경
 - 클럽 공지의 작성 버튼: 공지 사진 선택·게시
 - 피드의 작성 버튼: 사진 게시, 목록의 썸네일 선택으로 본문 이미지 확대
 
-로그인 성공 시 RUNLINE 서버가 발급한 access token을 전달합니다. 카카오 토큰을 그대로 사용하지 않습니다.
-
-```dart
-RunlineSession.instance.setAccessToken(runlineAccessToken);
-// 로그아웃 또는 계정 전환 전에 기존 세션을 지웁니다.
-RunlineSession.instance.setAccessToken(null);
-```
-
-사진 원본이나 토큰을 빌드 상수·브라우저 저장소에 넣지 않습니다.
-운영 주소는 `--dart-define=RUNLINE_API_BASE_URL=https://api.example.com`으로 설정합니다.
-개발 주소의 기본값은 `http://localhost:8787`이며 HTTP는 로컬 주소에만 허용합니다.
-웹 개발 시 `ADMIN_WEB_ORIGIN`이 Flutter 실행 origin과 일치해야 합니다.
-
-현재 앱에는 로그인 화면이 없으므로 위 세션 공급은 실제 로그인 UI를 연결할 때 필요합니다.
+로그인·갱신·로그아웃은 기존 `RunlineAuth` 흐름을 사용합니다. 별도의 세션 공급은 필요하지 않습니다.
+서버 주소는 통합 설정의 `RUNLINE_API_ORIGIN`을 사용합니다.
+웹 HTTP 허용 Origin은 `RUNLINE_WEB_ORIGIN`, WebSocket은 `CHAT_ALLOWED_ORIGINS`를 설정합니다.
 로그인하지 않은 상태에서는 업로드하지 않고 로그인 안내를 표시합니다.
 
 ## 실행·검증

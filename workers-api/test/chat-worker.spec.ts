@@ -1,6 +1,6 @@
 import { env, runInDurableObject, evictDurableObject } from "cloudflare:test";
 import { afterEach, expect, it } from "vitest";
-import worker from "../src/index";
+import { app as worker } from "../src/index";
 import type { ChatIdentity, ChatMessage, ChatState } from "../src/features/chat/chat-service";
 
 const token = `rla_${"a".repeat(64)}`;

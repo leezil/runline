@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { cp, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
@@ -14,7 +14,7 @@ import { createClub, joinClub, leaveClub, kickMember, closeClub } from "../../sr
 import { clubInput } from "../../src/features/clubs/validation";
 import { authenticateChat, dispatchAuthorized, getChatState, history, markRead, saveMessage, type ChatIdentity } from "../../src/features/chat/chat-service";
 import { endSession, refreshSession } from "../../src/features/auth/session-service";
-import worker from "../../src/index";
+import { app as worker } from "../../src/index";
 import type { WorkerBindings } from "../../src/types";
 
 type Account = { id: string; access: string; refresh: string; hash: string };
@@ -34,6 +34,7 @@ let env: WorkerBindings;
 
 async function account(number: number): Promise<Account> {
 	const { rows } = await admin.query("INSERT INTO runline_users (kakao_user_id, nickname) VALUES ($1, $2) RETURNING id", [number, `러너${number}`]);
+	await admin.query("INSERT INTO runline_user_profiles (user_id, nickname) VALUES ($1, $2)", [rows[0].id, `러너${number}`]);
 	const tokens = await issueTokens();
 	await admin.query(`INSERT INTO runline_sessions (user_id, access_token_hash, refresh_token_hash, access_expires_at, refresh_expires_at)
 		VALUES ($1,$2,$3,clock_timestamp() + interval '15 minutes',clock_timestamp() + interval '1 day')`, [rows[0].id, tokens.hashes.accessHash, tokens.hashes.refreshHash]);
@@ -81,7 +82,7 @@ beforeAll(async () => {
 	}
 	connection = `postgresql://postgres:${password}@127.0.0.1:${port}/postgres`;
 	admin = new Client({ connectionString: connection }); await admin.connect();
-	for (const name of ["001_auth.sql", "002_clubs.sql", "003_images.sql", "004_chat.sql"]) {
+	for (const name of (await readdir(new NodeURL("../../migrations/", import.meta.url))).filter((name) => name.endsWith(".sql")).sort()) {
 		await admin.query(await readFile(new NodeURL(`../../migrations/${name}`, import.meta.url), "utf8"));
 	}
 	env = { HYPERDRIVE: { connectionString: connection }, ADMIN_WEB_ORIGIN: "https://example.com" } as WorkerBindings;

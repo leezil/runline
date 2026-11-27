@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../shared/media/image_compose_screen.dart';
+import '../../shared/media/club_image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
 
@@ -22,13 +22,18 @@ class _ClubNoticesScreenState extends State<ClubNoticesScreen> {
   void initState() {
     super.initState();
     _load();
-    RunlineSession.instance.addListener(_refresh);
+    RunlineApi.instance.session.addListener(_refresh);
   }
 
-  void _refresh() { if (mounted) setState(_load); }
+  void _refresh() {
+    if (mounted) setState(_load);
+  }
 
   @override
-  void dispose() { RunlineSession.instance.removeListener(_refresh); super.dispose(); }
+  void dispose() {
+    RunlineApi.instance.session.removeListener(_refresh);
+    super.dispose();
+  }
 
   void _load() {
     _notices = RunlineApi.instance.json('/clubs/${widget.clubId}/notices');
@@ -46,8 +51,8 @@ class _ClubNoticesScreenState extends State<ClubNoticesScreen> {
             onPressed: () async {
               final saved = await Navigator.of(context).push<bool>(
                 MaterialPageRoute(
-                  builder: (_) => ImageComposeScreen(
-                    kind: ImageComposeKind.notice,
+                  builder: (_) => ClubImageComposeScreen(
+                    kind: ClubImageComposeKind.notice,
                     clubId: widget.clubId,
                   ),
                 ),
@@ -58,7 +63,7 @@ class _ClubNoticesScreenState extends State<ClubNoticesScreen> {
       ],
     ),
     body: FutureBuilder<Map<String, dynamic>>(
-        key: ValueKey(_notices),
+      key: ValueKey(_notices),
       future: _notices,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -116,7 +121,7 @@ class _ClubNoticeDetailScreenState extends State<ClubNoticeDetailScreen> {
   void initState() {
     super.initState();
     _load();
-    RunlineSession.instance.addListener(_refresh);
+    RunlineApi.instance.session.addListener(_refresh);
   }
 
   void _load() {
@@ -131,7 +136,7 @@ class _ClubNoticeDetailScreenState extends State<ClubNoticeDetailScreen> {
 
   @override
   void dispose() {
-    RunlineSession.instance.removeListener(_refresh);
+    RunlineApi.instance.session.removeListener(_refresh);
     super.dispose();
   }
 
