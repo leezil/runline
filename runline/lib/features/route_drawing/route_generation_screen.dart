@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_spacing.dart';
 import 'drawing_controller.dart';
+import 'route_place_search.dart';
 import '../route_generation/route_api.dart';
 import '../route_recommendation/recommended_route.dart';
 import '../route_recommendation/route_recommendation_screen.dart';
@@ -18,6 +20,7 @@ class RouteGenerationScreen extends StatefulWidget {
     this.maxDistanceKm = 8,
     this.service,
     this.location,
+    this.placeSearch,
     this.config = const RouteApiConfig(),
   });
 
@@ -26,6 +29,7 @@ class RouteGenerationScreen extends StatefulWidget {
   final double maxDistanceKm;
   final RouteService? service;
   final RunningLocation? location;
+  final RoutePlaceSearch? placeSearch;
   final RouteApiConfig config;
 
   @override
@@ -54,12 +58,21 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
   final _target = TextEditingController();
   final _longitude = TextEditingController();
   final _latitude = TextEditingController();
+  final _query = TextEditingController();
   _SearchRange _range = _SearchRange.standard;
   late final RouteService _service =
       widget.service ?? RouteApi(config: widget.config);
   bool _busy = false;
   bool _locating = false;
+  bool _searching = false;
+  bool _otherPlace = false;
+  RoutePlace? _place;
+  List<RoutePlace> _places = const [];
+  String? _searchMessage;
   String? _message;
+  bool get _canSearch => widget.placeSearch != null || canSearchRoutePlaces;
+  double get _minTarget => math.max(.3, widget.minDistanceKm);
+  double get _maxTarget => math.min(8, widget.maxDistanceKm);
   RouteGenerationInput get _input => RouteGenerationInput(
     drawing: widget.drawing,
     minDistanceKm: widget.minDistanceKm,
@@ -67,16 +80,59 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    if (_minTarget <= _maxTarget) {
+      _target.text = ((_minTarget + _maxTarget) / 2).toStringAsFixed(1);
+    }
+  }
+
+  @override
   void dispose() {
     _target.dispose();
     _longitude.dispose();
     _latitude.dispose();
+    _query.dispose();
     if (widget.service == null) _service.close();
     super.dispose();
   }
 
-  Future<void> _useCurrentLocation() async {
-    if (_busy || _locating) return;
+  Future<void> _searchPlaces() async {
+    final query = _query.text.trim();
+    if (_searching || query.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _searching = true;
+      _places = const [];
+      _searchMessage = null;
+    });
+    try {
+      final matches = await (widget.placeSearch ?? searchRoutePlaces)(query);
+      if (!mounted) return;
+      setState(() {
+        _places = matches;
+        if (matches.isEmpty) _searchMessage = '검색 결과가 없어요. 지역명이나 주소를 바꿔보세요.';
+      });
+    } catch (_) {
+      if (mounted) setState(() => _searchMessage = '장소 검색에 실패했어요. 다시 시도해주세요.');
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  void _selectPlaceMode(bool otherPlace) {
+    if (_otherPlace == otherPlace) return;
+    setState(() {
+      _otherPlace = otherPlace;
+      _place = null;
+      _longitude.clear();
+      _latitude.clear();
+      _message = null;
+    });
+  }
+
+  Future<bool> _useCurrentLocation() async {
+    if (_locating) return false;
     setState(() {
       _locating = true;
       _message = null;
@@ -84,10 +140,10 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
     try {
       final location = widget.location ?? GeolocatorRunningLocation();
       final status = await location.prepare();
-      if (!mounted) return;
+      if (!mounted) return false;
       if (status != null) {
         throw const RouteApiException(
-          '현재 위치를 가져올 수 없습니다. 위치 권한과 위치 서비스를 확인하거나 좌표를 입력해주세요.',
+          '현재 위치를 가져올 수 없어요. 위치 권한을 확인하거나 다른 장소를 선택해주세요.',
         );
       }
       final fix = Completer<GpsPoint>();
@@ -115,21 +171,22 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
       } finally {
         await subscription.cancel();
       }
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _longitude.text = point.longitude.toStringAsFixed(6);
         _latitude.text = point.latitude.toStringAsFixed(6);
-        _message = '현재 위치를 코스 탐색 기준으로 설정했습니다.';
       });
+      return true;
     } on RouteApiException catch (error) {
       if (mounted) setState(() => _message = error.message);
     } catch (_) {
       if (mounted) {
-        setState(() => _message = 'GPS 위치를 확인하지 못했습니다. 다시 시도하거나 좌표를 입력해주세요.');
+        setState(() => _message = 'GPS 위치를 확인하지 못했어요. 다시 시도하거나 다른 장소를 선택해주세요.');
       }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+    return false;
   }
 
   Future<void> _request() async {
@@ -140,13 +197,19 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
     });
     try {
       final target = double.tryParse(_target.text.trim());
+      if (target == null) {
+        throw const RouteApiException('범위 안에서 목표 거리(km)를 입력해주세요.');
+      }
+      if (!target.isFinite || target < _minTarget || target > _maxTarget) {
+        throw const RouteApiException('화면에 표시된 범위 안에서 목표 거리를 선택해주세요.');
+      }
+      if (!_otherPlace && _longitude.text.isEmpty && _latitude.text.isEmpty) {
+        if (!await _useCurrentLocation() || !mounted) return;
+      }
       final lon = double.tryParse(_longitude.text.trim());
       final lat = double.tryParse(_latitude.text.trim());
-      if (target == null) {
-        throw const RouteApiException('거리 범위 안에서 사용할 목표 거리(km)를 직접 입력해주세요.');
-      }
       if (lon == null || lat == null) {
-        throw const RouteApiException('현재 위치를 선택하거나 코스를 찾을 기준 좌표를 입력해주세요.');
+        throw const RouteApiException('검색 결과에서 출발 기준 장소를 선택해주세요.');
       }
       final request = RouteRequest(
         input: _input,
@@ -188,146 +251,228 @@ class _RouteGenerationScreenState extends State<RouteGenerationScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('경로 만들기')),
-    body: SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              height: 300,
-              child: DrawingPreview(drawing: widget.drawing),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text('그린 모양을 바탕으로 러닝 경로를 생성할 준비가 되었습니다.'),
-            const SizedBox(height: AppSpacing.xs),
-            Text('전체 point 개수: ${widget.drawing.points.length}개'),
-            Text(
-              '캔버스: ${widget.drawing.canvasSize.width.toStringAsFixed(0)} × ${widget.drawing.canvasSize.height.toStringAsFixed(0)} · ${widget.drawing.strokes.length}획',
-            ),
-            const Text('API v1은 한 획 그림만 지원합니다. 여러 획은 뒤로 돌아가 초기화 후 다시 그려주세요.'),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              '선택한 거리 범위: ${widget.minDistanceKm}–${widget.maxDistanceKm} km',
-            ),
-            const Text('서버 지원 목표 거리: 0.3~8 km. 선택 범위와 겹치는 거리만 요청할 수 있습니다.'),
-            TextField(
-              controller: _target,
-              key: const Key('target-distance'),
-              enabled: !_busy && !_locating,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+  Widget build(BuildContext context) {
+    final enabled = !_busy && !_locating;
+    final previewOnly = widget.service == null && !widget.config.hasToken;
+    return Scaffold(
+      appBar: AppBar(title: const Text('경로 만들기')),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 112,
+                child: DrawingPreview(drawing: widget.drawing),
               ),
-              decoration: const InputDecoration(
-                labelText: '목표 거리 (km)',
-                helperText: '범위 안에서 사용할 단일 목표 거리를 직접 입력하세요.',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: _busy || _locating ? null : _useCurrentLocation,
-              icon: const Icon(Icons.my_location),
-              label: Text(_locating ? '위치 확인 중' : '현재 위치에서 코스 찾기'),
-            ),
-            const Text('다른 곳에서 달리려면 기준 좌표를 입력하세요.'),
-
-            TextField(
-              controller: _longitude,
-              key: const Key('test-longitude'),
-              enabled: !_busy && !_locating,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
-              ),
-              decoration: const InputDecoration(labelText: '기준 경도 (124~132)'),
-            ),
-            TextField(
-              controller: _latitude,
-              key: const Key('test-latitude'),
-              enabled: !_busy && !_locating,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
-              ),
-              decoration: const InputDecoration(labelText: '기준 위도 (32~39)'),
-            ),
-            Text('어디까지 찾아볼까요?', style: Theme.of(context).textTheme.titleMedium),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final range in _SearchRange.values)
+              const SizedBox(height: AppSpacing.md),
+              if (widget.drawing.strokes.length != 1)
+                const Text('경로를 찾으려면 한 획으로 그려주세요.'),
+              Text('어디서 달릴까요?', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: 8,
+                children: [
                   ChoiceChip(
-                    label: Text(range.label),
-                    selected: _range == range,
-                    onSelected: !_busy && !_locating
-                        ? (_) => setState(() => _range = range)
-                        : null,
+                    avatar: const Icon(Icons.my_location, size: 18),
+                    label: const Text('현재 위치'),
+                    selected: !_otherPlace,
+                    onSelected: enabled ? (_) => _selectPlaceMode(false) : null,
+                  ),
+                  ChoiceChip(
+                    avatar: const Icon(Icons.search, size: 18),
+                    label: const Text('다른 장소'),
+                    selected: _otherPlace,
+                    onSelected: enabled ? (_) => _selectPlaceMode(true) : null,
+                  ),
+                ],
+              ),
+              if (!_otherPlace)
+                Text(
+                  _longitude.text.isEmpty
+                      ? '경로를 생성할 때 현재 위치를 확인해요.'
+                      : '현재 위치를 코스 탐색 기준으로 설정했습니다.',
+                )
+              else if (_canSearch) ...[
+                const SizedBox(height: AppSpacing.xs),
+                TextField(
+                  key: const Key('place-query'),
+                  controller: _query,
+                  enabled: enabled && !_searching,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _searchPlaces(),
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    labelText: '지역명, 장소 또는 주소',
+                    hintText: '예: 평촌중앙공원',
+                    suffixIcon: IconButton(
+                      tooltip: '장소 검색',
+                      onPressed: enabled && !_searching ? _searchPlaces : null,
+                      icon: const Icon(Icons.search),
+                    ),
+                  ),
+                ),
+                if (_searching) const LinearProgressIndicator(),
+                if (_searchMessage != null) Text(_searchMessage!),
+                for (final place in _places)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.place_outlined),
+                    title: Text(place.name),
+                    subtitle: place.address == place.name
+                        ? null
+                        : Text(place.address),
+                    onTap: enabled ? () => _setPlace(place) : null,
+                  ),
+                if (_place case final place?)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.check_circle_outline),
+                    title: Text(place.name),
+                    subtitle: place.address == place.name
+                        ? null
+                        : Text(place.address),
                   ),
               ],
-            ),
-            ValueListenableBuilder(
-              valueListenable: _target,
-              builder: (context, value, _) {
-                final target = double.tryParse(value.text.trim());
-                final percent = (_range.tolerance * 100).round();
-                final distance =
-                    target != null &&
-                        target.isFinite &&
-                        target >= widget.minDistanceKm &&
-                        target >= .3 &&
-                        target <= widget.maxDistanceKm &&
-                        target <= 8
-                    ? '약 ${(target * (1 - _range.tolerance)).toStringAsFixed(2)}~${(target * (1 + _range.tolerance)).toStringAsFixed(2)} km'
-                    : '목표 거리의 ±$percent%';
-                return Text(
-                  '선택한 장소에서 ${_range.approachLabel} 이내에 시작하고, '
-                  '길이가 ${distance}인 코스를 찾아요.',
-                );
-              },
-            ),
-            if (widget.service == null && !widget.config.hasToken)
-              const Text(
-                'API_TOKEN 설정이 필요합니다. config/app.local.json에 공유 개발 토큰을 설정하고 다시 실행해주세요.',
+              if (_otherPlace && !_canSearch) ...[
+                const Text('장소 검색을 사용할 수 없어요. 출발 위치의 좌표를 입력해주세요.'),
+                _coordinateField(
+                  'test-longitude',
+                  '기준 경도',
+                  _longitude,
+                  enabled,
+                ),
+                _coordinateField('test-latitude', '기준 위도', _latitude, enabled),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _target,
+                key: const Key('target-distance'),
+                enabled: !_busy && !_locating,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  labelText: '목표 거리 (km)',
+                  helperText: _minTarget <= _maxTarget
+                      ? '${_minTarget.toStringAsFixed(1)}~${_maxTarget.toStringAsFixed(1)} km 사이에서 선택'
+                      : '뒤로 돌아가 8 km 이하를 포함하는 범위를 선택해주세요.',
+                  helperMaxLines: 2,
+                ),
               ),
-            const Text(
-              'Flutter Web 토큰은 브라우저에서 확인 가능합니다. 공유 테스트 토큰을 쓰는 개발 환경에서만 직접 호출하세요.',
-            ),
-            if (_message != null)
-              Text(_message!, key: const Key('api-message')),
-            if (_busy) ...[
-              const LinearProgressIndicator(),
-              const Text('요청 중입니다. 화면을 나가거나 120초가 지나도 서버 계산은 계속될 수 있습니다.'),
-            ],
-            const SizedBox(height: AppSpacing.xs),
-            FilledButton(
-              onPressed:
-                  _busy ||
-                      _locating ||
-                      (widget.service == null && !widget.config.hasToken)
-                  ? null
-                  : () => _request(),
-              child: const Text('경로 생성'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text('개발용 미리보기: Mock Data를 사용하며 실제 추천 경로가 아닙니다.'),
-            OutlinedButton(
-              onPressed: _busy
-                  ? null
-                  : () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            RouteRecommendationScreen(input: _input),
-                      ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                '어디까지 찾아볼까요?',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final range in _SearchRange.values)
+                    ChoiceChip(
+                      label: Text(range.label),
+                      selected: _range == range,
+                      onSelected: enabled
+                          ? (_) => setState(() => _range = range)
+                          : null,
                     ),
-              child: const Text('추천 화면 미리보기'),
-            ),
-          ],
+                ],
+              ),
+              ValueListenableBuilder(
+                valueListenable: _target,
+                builder: (context, value, _) {
+                  final target = double.tryParse(value.text.trim());
+                  final percent = (_range.tolerance * 100).round();
+                  final distance =
+                      target != null &&
+                          target.isFinite &&
+                          target >= _minTarget &&
+                          target <= _maxTarget
+                      ? '약 ${(target * (1 - _range.tolerance)).toStringAsFixed(2)}~${(target * (1 + _range.tolerance)).toStringAsFixed(2)} km'
+                      : '목표 거리의 ±$percent%';
+                  return Text(
+                    '선택한 장소에서 ${_range.approachLabel} 이내에 시작하고, '
+                    '길이가 ${distance}인 코스를 찾아요.',
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (previewOnly)
+                const Text(
+                  'API_TOKEN 설정이 필요합니다. config/app.local.json에 공유 개발 토큰을 설정하고 다시 실행해주세요.',
+                ),
+              if (_message != null)
+                Text(
+                  _message!,
+                  key: const Key('api-message'),
+                  textAlign: TextAlign.center,
+                ),
+              if (_busy || _locating) ...[
+                const LinearProgressIndicator(),
+                Text(_locating ? '현재 위치를 확인하고 있어요.' : '그린 모양과 비슷한 코스를 찾고 있어요.'),
+              ],
+              const SizedBox(height: AppSpacing.xs),
+              FilledButton(
+                onPressed:
+                    !enabled ||
+                        _searching ||
+                        _minTarget > _maxTarget ||
+                        widget.drawing.strokes.length != 1 ||
+                        previewOnly
+                    ? null
+                    : () => _request(),
+                child: const Text('경로 생성'),
+              ),
+              if (previewOnly)
+                OutlinedButton(
+                  onPressed: enabled
+                      ? () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                RouteRecommendationScreen(input: _input),
+                          ),
+                        )
+                      : null,
+                  child: const Text('추천 화면 미리보기'),
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  void _setPlace(RoutePlace place) {
+    setState(() {
+      _place = place;
+      _places = const [];
+      _query.text = place.name;
+      _longitude.text = place.longitude.toString();
+      _latitude.text = place.latitude.toString();
+      _message = null;
+    });
+  }
+
+  Widget _coordinateField(
+    String key,
+    String label,
+    TextEditingController controller,
+    bool enabled,
+  ) => TextField(
+    key: Key(key),
+    controller: controller,
+    enabled: enabled,
+    keyboardType: const TextInputType.numberWithOptions(
+      decimal: true,
+      signed: true,
     ),
+    decoration: InputDecoration(labelText: label),
+    onChanged: (_) {
+      if (_place != null) setState(() => _place = null);
+    },
   );
 }
 
