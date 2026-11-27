@@ -33,6 +33,7 @@ class _FeedScreenState extends State<FeedScreen> {
     super.initState();
     _api.session.addListener(_sessionChanged);
     _api.profileChanges.addListener(_sessionChanged);
+    _api.postsChanges.addListener(_sessionChanged);
     _load(reset: true);
   }
 
@@ -46,8 +47,12 @@ class _FeedScreenState extends State<FeedScreen> {
       (oldWidget.api ?? RunlineApi.instance).profileChanges.removeListener(
         _sessionChanged,
       );
+      (oldWidget.api ?? RunlineApi.instance).postsChanges.removeListener(
+        _sessionChanged,
+      );
       _api.session.addListener(_sessionChanged);
       _api.profileChanges.addListener(_sessionChanged);
+      _api.postsChanges.addListener(_sessionChanged);
       _load(reset: true);
     }
   }
@@ -56,6 +61,7 @@ class _FeedScreenState extends State<FeedScreen> {
   void dispose() {
     _api.session.removeListener(_sessionChanged);
     _api.profileChanges.removeListener(_sessionChanged);
+    _api.postsChanges.removeListener(_sessionChanged);
     super.dispose();
   }
 
@@ -167,7 +173,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 onPressed: !_api.session.isSignedIn
                     ? null
                     : () async {
-                        final saved = await Navigator.of(context).push<bool>(
+                        await Navigator.of(context).push<bool>(
                           MaterialPageRoute(
                             builder: (_) => ImageComposeScreen(
                               kind: ImageComposeKind.feed,
@@ -175,7 +181,6 @@ class _FeedScreenState extends State<FeedScreen> {
                             ),
                           ),
                         );
-                        if (saved == true && mounted) await _load(reset: true);
                       },
                 icon: const Icon(Icons.edit_square),
                 tooltip: '게시글 작성',

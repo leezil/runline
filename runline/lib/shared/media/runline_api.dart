@@ -29,7 +29,9 @@ class RunlineApi {
   final RunlineAuth session;
   final Uri baseUri;
   final _profileRevision = ValueNotifier<int>(0);
+  final _postsRevision = ValueNotifier<int>(0);
   Listenable get profileChanges => _profileRevision;
+  Listenable get postsChanges => _postsRevision;
 
   void notifyProfileChanged() => _profileRevision.value++;
 
@@ -87,13 +89,18 @@ class RunlineApi {
     final response = await http.Response.fromStream(
       await _client.send(request).timeout(const Duration(seconds: 45)),
     );
-    if (response.statusCode == 204) return {};
-    final result = _decode(response);
-    if (method == 'PATCH' &&
-        path == '/me/profile' &&
-        session.isSignedIn &&
-        session.userId == owner) {
-      notifyProfileChanged();
+    final result = response.statusCode == 204
+        ? <String, dynamic>{}
+        : _decode(response);
+    if (session.isSignedIn && session.userId == owner) {
+      if (method == 'PATCH' && path == '/me/profile') {
+        notifyProfileChanged();
+      }
+      if ((method == 'POST' && path == '/feed/posts') ||
+          ((method == 'PATCH' || method == 'DELETE') &&
+              RegExp(r'^/feed/posts/[^/?#]+$').hasMatch(path))) {
+        _postsRevision.value++;
+      }
     }
     return result;
   }

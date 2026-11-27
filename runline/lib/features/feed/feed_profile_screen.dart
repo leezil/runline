@@ -44,6 +44,7 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
     super.initState();
     _api.session.addListener(_sessionChanged);
     _api.profileChanges.addListener(_profileChanged);
+    _api.postsChanges.addListener(_profileChanged);
     _load();
   }
 
@@ -57,8 +58,12 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
       (oldWidget.api ?? RunlineApi.instance).profileChanges.removeListener(
         _profileChanged,
       );
+      (oldWidget.api ?? RunlineApi.instance).postsChanges.removeListener(
+        _profileChanged,
+      );
       _api.session.addListener(_sessionChanged);
       _api.profileChanges.addListener(_profileChanged);
+      _api.postsChanges.addListener(_profileChanged);
     }
     if (oldWidget.api != widget.api || oldWidget.userId != widget.userId) {
       _changingFollow = false;
@@ -70,6 +75,7 @@ class _FeedProfileScreenState extends State<FeedProfileScreen> {
   void dispose() {
     _api.session.removeListener(_sessionChanged);
     _api.profileChanges.removeListener(_profileChanged);
+    _api.postsChanges.removeListener(_profileChanged);
     super.dispose();
   }
 
