@@ -37,10 +37,10 @@ class ClubRunningScreen extends StatelessWidget {
   Widget build(BuildContext context) => _ClubScaffold(
     title: '클럽 러닝', trailing: const [Icons.search, Icons.add],
     child: ListView(padding: const EdgeInsets.all(AppSpacing.md), children: [
-      const _RunCard(title: '서울숲 저녁 러닝', status: '모집중'), const SizedBox(height: AppSpacing.sm),
-      const _RunCard(title: '뚝섬 한바퀴', status: '모집중'), const SizedBox(height: AppSpacing.lg),
+      const ClubRunCard(title: '서울숲 저녁 러닝', status: '모집중'), const SizedBox(height: AppSpacing.sm),
+      const ClubRunCard(title: '뚝섬 한바퀴', status: '모집중'), const SizedBox(height: AppSpacing.lg),
       Text('지난 클럽 러닝', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: AppSpacing.sm),
-      const _RunCard(title: '서울숲 저녁 러닝', status: '종료', finished: true),
+      const ClubRunCard(title: '서울숲 저녁 러닝', status: '종료', finished: true),
     ]),
   );
 }
@@ -66,6 +66,75 @@ class _ClubHeader extends StatelessWidget { const _ClubHeader({required this.tit
 class _Avatar extends StatelessWidget { const _Avatar({required this.name, this.muted = false}); final String name; final bool muted; @override Widget build(BuildContext context) => CircleAvatar(radius: 21, backgroundColor: muted ? const Color(0xFFD8D8D8) : const Color(0xFFE6E9FF), child: muted ? null : Text(name.substring(0, 1), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary))); }
 class _NoticeCard extends StatelessWidget { const _NoticeCard({required this.name, required this.date, required this.message, this.poll = false}); final String name, date, message; final bool poll; @override Widget build(BuildContext context) => AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [_Avatar(name: name), const SizedBox(width: AppSpacing.xs), Text(name, style: Theme.of(context).textTheme.titleMedium), const Spacer(), Text(date, style: Theme.of(context).textTheme.bodySmall)]), const SizedBox(height: AppSpacing.md), Text(message), if (poll) ...[const SizedBox(height: AppSpacing.md), AppButton(label: '참석', onPressed: () {}), const SizedBox(height: AppSpacing.xs), AppButton(label: '불참', onPressed: () {})]])); }
 class _MemberRow extends StatelessWidget { const _MemberRow({required this.name, required this.host, required this.muted}); final String name; final bool host, muted; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm), child: Row(children: [_Avatar(name: name, muted: muted), const SizedBox(width: AppSpacing.md), Text(name, style: Theme.of(context).textTheme.titleMedium), if (host) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.flag_outlined, size: 16, color: AppColors.primary))])); }
-class _RunCard extends StatelessWidget { const _RunCard({required this.title, required this.status, this.finished = false}); final String title, status; final bool finished; @override Widget build(BuildContext context) => AppCard(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(height: 112, decoration: BoxDecoration(color: finished ? const Color(0xFF9FA3AA) : const Color(0xFFAAC19A), borderRadius: const BorderRadius.vertical(top: Radius.circular(20))), child: Stack(children: [const Center(child: Icon(Icons.park_outlined, color: Colors.white, size: 48)), Positioned(right: AppSpacing.sm, top: AppSpacing.sm, child: Chip(label: Text(status), labelStyle: const TextStyle(color: Colors.white), backgroundColor: finished ? Colors.grey : AppColors.primary))])), Padding(padding: const EdgeInsets.all(AppSpacing.md), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: AppSpacing.xs), const Text('2026. 10. 01. (목) 19:00', style: TextStyle(color: AppColors.subText)), const SizedBox(height: 4), const Text('서울숲 공원 정문 · 12 / 20명', style: TextStyle(color: AppColors.subText)), const SizedBox(height: AppSpacing.sm), AppButton(label: '참여하기', onPressed: () {}, variant: AppButtonVariant.outlined)]))])); }
+class ClubRunCard extends StatelessWidget {
+  const ClubRunCard({
+    super.key,
+    required this.title,
+    required this.status,
+    this.finished = false,
+  });
+
+  final String title;
+  final String status;
+  final bool finished;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: EdgeInsets.zero,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 112,
+          decoration: BoxDecoration(
+            color: finished ? const Color(0xFF9FA3AA) : const Color(0xFFAAC19A),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Stack(
+            children: [
+              const Center(
+                child: Icon(Icons.park_outlined, color: Colors.white, size: 48),
+              ),
+              Positioned(
+                right: AppSpacing.sm,
+                top: AppSpacing.sm,
+                child: Chip(
+                  label: Text(status),
+                  labelStyle: const TextStyle(color: Colors.white),
+                  backgroundColor: finished ? Colors.grey : AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              const Text(
+                '2026. 10. 01. (목) 19:00',
+                style: TextStyle(color: AppColors.subText),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '서울숲 공원 정문 · 12 / 20명',
+                style: TextStyle(color: AppColors.subText),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
+                label: '참여하기',
+                onPressed: () {},
+                variant: AppButtonVariant.outlined,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 class _OtherMessage extends StatelessWidget { const _OtherMessage({required this.name, required this.text, required this.time}); final String name, text, time; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [_Avatar(name: name), const SizedBox(width: AppSpacing.xs), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 4), Container(padding: const EdgeInsets.all(AppSpacing.sm), decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)), child: Text(text, style: const TextStyle(color: Colors.white)))])), Text(time, style: Theme.of(context).textTheme.bodySmall)])); }
 class _MyMessage extends StatelessWidget { const _MyMessage({required this.text, required this.time}); final String text, time; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: AppSpacing.md), child: Row(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [Text(time, style: Theme.of(context).textTheme.bodySmall), const SizedBox(width: 4), Container(padding: const EdgeInsets.all(AppSpacing.sm), decoration: BoxDecoration(color: const Color(0xFFE9ECF2), borderRadius: BorderRadius.circular(12)), child: Text(text))])); }

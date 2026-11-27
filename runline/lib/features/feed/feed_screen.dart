@@ -4,10 +4,10 @@ import '../../app/app_spacing.dart';
 import '../../shared/media/image_compose_screen.dart';
 import '../../shared/media/runline_api.dart';
 import '../../shared/media/runline_image.dart';
-import '../../shared/widgets/app_card.dart';
 import 'feed_profile_screen.dart';
 import 'feed_post_screen.dart';
 import 'widgets/feed_avatar.dart';
+import 'widgets/feed_post_card.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key, this.api});
@@ -215,7 +215,7 @@ class _FeedScreenState extends State<FeedScreen> {
           for (final post in _posts)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: AppCard(
+              child: FeedPostCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
