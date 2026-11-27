@@ -1,9 +1,41 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 
 import '../../app/kakao_map_bootstrap.dart';
 import 'running_map_data.dart';
 import '../../features/facilities/facility.dart';
+
+Future<FacilityBounds?> androidMapBounds(
+  Size logicalSize,
+  double pixelRatio,
+  Future<LatLng?> Function(int, int) project,
+) async {
+  // Android's map projection takes pixels relative to the native map view.
+  final width = (logicalSize.width * pixelRatio).round();
+  final height = (logicalSize.height * pixelRatio).round();
+  if (width < 2 || height < 2) return null;
+  final corners = await Future.wait([
+    project(0, 0),
+    project(width - 1, 0),
+    project(0, height - 1),
+    project(width - 1, height - 1),
+  ]);
+  final points = corners.whereType<LatLng>().toList();
+  if (points.length != 4) return null;
+  final lng = points.map((p) => p.longitude);
+  final lat = points.map((p) => p.latitude);
+  final bounds = FacilityBounds(
+    lng.reduce(math.min),
+    lat.reduce(math.min),
+    lng.reduce(math.max),
+    lat.reduce(math.max),
+  );
+  return bounds.west < bounds.east && bounds.south < bounds.north
+      ? bounds
+      : null;
+}
 
 class RunlineMapView extends StatefulWidget {
   const RunlineMapView({
@@ -78,16 +110,24 @@ class _RunlineMapViewState extends State<RunlineMapView> {
     final controller = _controller;
     if (controller == null || widget.onBoundsChanged == null) return;
     try {
-      final bounds = await controller.getBounds(context);
-      if (!mounted || revision != _boundsRevision || bounds == null) return;
-      widget.onBoundsChanged?.call(
-        FacilityBounds(
-          bounds.sw.longitude,
-          bounds.sw.latitude,
-          bounds.ne.longitude,
-          bounds.ne.latitude,
-        ),
-      );
+      final box = context.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final ratio = View.of(context).devicePixelRatio;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        if (!mounted || revision != _boundsRevision) return;
+        final bounds = await androidMapBounds(
+          box.size,
+          ratio,
+          controller.fromScreenPoint,
+        );
+        if (!mounted || revision != _boundsRevision) return;
+        if (bounds != null) {
+          widget.onBoundsChanged?.call(bounds);
+          return;
+        }
+        if (attempt < 4)
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
     } catch (_) {
       // Camera may be unavailable while the native map is being destroyed.
     }
