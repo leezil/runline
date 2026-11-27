@@ -1,6 +1,7 @@
 import { env, runInDurableObject, evictDurableObject } from "cloudflare:test";
 import { afterEach, expect, it } from "vitest";
 import { app as worker } from "../src/index";
+import { allowedChatOrigin } from "../src/features/chat/chat-binding";
 import type { ChatIdentity, ChatMessage, ChatState } from "../src/features/chat/chat-service";
 
 const token = `rla_${"a".repeat(64)}`;
@@ -118,4 +119,22 @@ it("rejects oversized frames and does not acknowledge a failed database write", 
 	});
 	second.ws.send(JSON.stringify({ type: "send", clientMessageId: crypto.randomUUID(), content: "never acknowledged" }));
 	expect((await second.closed).code).toBe(1011);
+});
+
+it("uses the login web origin as the default chat allowlist", () => {
+    const bindings = { ...env, CHAT_ALLOWED_ORIGINS: undefined,
+        RUNLINE_WEB_ORIGIN: "https://app.example.com", ADMIN_WEB_ORIGIN: "https://admin.example.com" };
+    const request = (origin: string) => new Request("https://api.example.com", { headers: { Origin: origin } });
+    expect(allowedChatOrigin(bindings, request("https://app.example.com"))).toBe(true);
+    expect(allowedChatOrigin(bindings, request("https://admin.example.com"))).toBe(true);
+    expect(allowedChatOrigin(bindings, request("https://attacker.example.com"))).toBe(false);
+});
+
+it("lets an explicit chat allowlist override HTTP origins", () => {
+    const bindings = { ...env, CHAT_ALLOWED_ORIGINS: " https://chat.example.com ",
+        RUNLINE_WEB_ORIGIN: "https://app.example.com" };
+    const request = (origin: string) => new Request("https://api.example.com", { headers: { Origin: origin } });
+    expect(allowedChatOrigin(bindings, request("https://chat.example.com"))).toBe(true);
+    expect(allowedChatOrigin(bindings, request("https://app.example.com"))).toBe(false);
+    expect(allowedChatOrigin({ ...bindings, CHAT_ALLOWED_ORIGINS: "" }, request("https://chat.example.com"))).toBe(false);
 });

@@ -22,7 +22,7 @@
 ## 연결 인증과 무효화
 
 1. 운영은 WSS, 로컬만 WS입니다. 접속 URL의 쿼리 파라미터는 허용하지 않습니다.
-2. 웹 Origin은 `CHAT_ALLOWED_ORIGINS`의 쉼표 구분 목록과 정확히 비교합니다. 미설정이면 `ADMIN_WEB_ORIGIN`을 사용합니다.
+2. 웹 Origin은 `CHAT_ALLOWED_ORIGINS`의 쉼표 구분 목록과 정확히 비교합니다. 미설정이면 기존 로그인 웹의 `RUNLINE_WEB_ORIGIN`과 `ADMIN_WEB_ORIGIN`을 사용합니다. 명시한 `CHAT_ALLOWED_ORIGINS`는 이 기본값보다 우선합니다.
 3. Origin 없는 네이티브 연결도 토큰 인증은 필수입니다.
 4. 연결 후 5초 안에 첫 `auth` 메시지로 RUNLINE access token을 보냅니다. 토큰을 URL에 넣지 않습니다.
 5. 인증 전에는 채팅 데이터를 전달하지 않습니다. 소켓 attachment에는 토큰 해시만 보관합니다.

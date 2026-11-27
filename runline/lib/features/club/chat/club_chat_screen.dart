@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'club_chat_controller.dart';
+import '../../../shared/media/runline_api.dart';
 
 class ClubChatScreen extends StatefulWidget {
   const ClubChatScreen({
@@ -10,10 +11,12 @@ class ClubChatScreen extends StatefulWidget {
     required this.clubId,
     required this.clubName,
     this.controller,
+    this.api,
   });
   final String clubId;
   final String clubName;
   final ClubChatController? controller;
+  final RunlineApi? api;
   @override
   State<ClubChatScreen> createState() => _ClubChatScreenState();
 }
@@ -28,7 +31,9 @@ class _ClubChatScreenState extends State<ClubChatScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _chat = widget.controller ?? ClubChatController(clubId: widget.clubId);
+    _chat =
+        widget.controller ??
+        ClubChatController(clubId: widget.clubId, api: widget.api);
     _chat.addListener(_changed);
     _scroll.addListener(_reading);
     unawaited(_chat.connect());

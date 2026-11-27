@@ -8,9 +8,10 @@ import '../../features/auth/runline_auth.dart';
 import 'image_optimizer.dart';
 
 class RunlineApiException implements Exception {
-  const RunlineApiException(this.message, {this.statusCode});
+  const RunlineApiException(this.message, {this.statusCode, this.code});
   final String message;
   final int? statusCode;
+  final String? code;
   @override
   String toString() => message;
 }
@@ -49,8 +50,15 @@ class RunlineApi {
   }
 
   Future<Map<String, String>> _headers() async {
+    final owner = session.userId;
     if (!await session.hasSession()) {
       throw const RunlineApiException('로그인 후 이용해주세요.', statusCode: 401);
+    }
+    if (owner != null && owner != session.userId) {
+      throw const RunlineApiException(
+        '계정이 변경되었어요. 다시 시도해주세요.',
+        statusCode: 401,
+      );
     }
     final token = session.accessToken;
     if (token == null || token.isEmpty) {
@@ -81,16 +89,31 @@ class RunlineApi {
   Future<Map<String, dynamic>> upload(
     String path,
     OptimizedUploadImage image,
-  ) async {
+  ) => uploadFile(
+    path,
+    image.bytes,
+    filename: image.filename,
+    contentType: image.contentType,
+  );
+
+  Future<Map<String, dynamic>> uploadFile(
+    String path,
+    Uint8List bytes, {
+    required String filename,
+    required String contentType,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
+      throw const RunlineApiException('파일은 1바이트~5MB까지 올릴 수 있어요.');
+    }
     final request = http.MultipartRequest('POST', endpoint('/api/v1$path'));
     request.followRedirects = false;
     request.headers.addAll(await _headers());
     request.files.add(
       http.MultipartFile.fromBytes(
         'file',
-        image.bytes,
-        filename: image.filename,
-        contentType: MediaType.parse(image.contentType),
+        bytes,
+        filename: filename,
+        contentType: MediaType.parse(contentType),
       ),
     );
     final response = await http.Response.fromStream(
@@ -119,6 +142,20 @@ class RunlineApi {
     return response.bodyBytes;
   }
 
+  Future<Uint8List> fileBytes(String path) async {
+    final request = http.Request('GET', endpoint(path));
+    request.followRedirects = false;
+    request.headers.addAll(await _headers());
+    final response = await http.Response.fromStream(
+      await _client.send(request).timeout(const Duration(seconds: 45)),
+    );
+    if (response.statusCode != 200) {
+      _decode(response);
+      throw const RunlineApiException('파일을 불러오지 못했어요.');
+    }
+    return response.bodyBytes;
+  }
+
   Map<String, dynamic> _decode(http.Response response) {
     Map<String, dynamic> result;
     try {
@@ -135,7 +172,11 @@ class RunlineApi {
         503 => '이미지 업로드를 준비 중이에요. 잠시 후 다시 시도해주세요.',
         _ => result['error']?['message'] as String? ?? '요청을 처리하지 못했어요.',
       };
-      throw RunlineApiException(message, statusCode: response.statusCode);
+      throw RunlineApiException(
+        message,
+        statusCode: response.statusCode,
+        code: result['error']?['code'] as String?,
+      );
     }
     return result;
   }

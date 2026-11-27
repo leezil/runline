@@ -17,5 +17,5 @@ export async function invalidateChat(env: WorkerBindings, clubId: string | undef
 export function allowedChatOrigin(env: WorkerBindings, request: Request): boolean {
 	const origin = request.headers.get("Origin");
 	if (!origin) return true; // Native clients have no browser Origin; token auth is still mandatory.
-	return (env.CHAT_ALLOWED_ORIGINS ?? env.ADMIN_WEB_ORIGIN ?? "").split(",").map((value) => value.trim()).filter(Boolean).includes(origin);
+	return (env.CHAT_ALLOWED_ORIGINS ?? [env.RUNLINE_WEB_ORIGIN, env.ADMIN_WEB_ORIGIN].filter(Boolean).join(",")).split(",").map((value) => value.trim()).filter(Boolean).includes(origin);
 }
